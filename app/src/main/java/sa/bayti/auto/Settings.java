@@ -1,0 +1,165 @@
+package sa.bayti.auto;
+
+import android.content.Context;
+import android.content.SharedPreferences;
+
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * Everything the phone's settings screen sets and the car's screen reads, in one SharedPreferences file. The car reads it again on
+ * every change (Hub listens), so a switch flipped on the phone shows on the car at once.
+ */
+final class Settings {
+    static final String FILE = "bayti_auto";
+
+    /** the items of the car's screen: key, Arabic label; each one on unless switched off */
+    static final String[][] ITEMS = {
+        {"clock", "الساعة"},
+        {"hijri", "التاريخ الهجري"},
+        {"greg", "التاريخ الميلادي"},
+        {"phrase", "العبارة"},
+        {"weather", "الطقس"},
+        {"prayer", "الصلاة القادمة"},
+        {"hilal", "مباراة الهلال القادمة"},
+        {"carousel", "العرض المتحرك"},
+        {"background", "صورة الخلفية"},
+    };
+
+    /** «التحية»: one phrase per part of the day {key, when, the default}, as Bayti TV's */
+    static final String[][] GREET_PARTS = {
+        {"morning", "صباحًا · من الفجر إلى الظهر", "صباح الخير"},
+        {"day", "نهارًا · من الظهر إلى العصر", "طاب يومك"},
+        {"evening", "مساءً · من العصر إلى العشاء", "مساء الخير"},
+        {"night", "ليلًا · بعد العشاء", "تصبح على خير"},
+    };
+    static final int GREET_CHARS = 40;
+
+    /** the same table as Bayti TV's Prefs.PRAYER_METHODS (PrayerCalc.Method holds the angles) */
+    static final String[][] PRAYER_METHODS = {
+        {"jafari", "الشيعة الاثنا عشرية (قم)"}, {"tehran", "معهد الجيوفيزياء (طهران)"}, {"umm_alqura", "أم القرى (السعودية)"},
+        {"gulf", "منطقة الخليج"}, {"kuwait", "الكويت"}, {"qatar", "قطر"}, {"dubai", "دبي"},
+        {"mwl", "رابطة العالم الإسلامي"}, {"egypt", "الهيئة المصرية العامة للمساحة"},
+        {"karachi", "جامعة العلوم الإسلامية (كراتشي)"}, {"isna", "أمريكا الشمالية (ISNA)"},
+    };
+
+    /** «مصادر الصور»: Bayti TV's sources (PhotoSources) and the owner's own folder on the phone */
+    static final String OWN = "own";
+    static final String[][] SOURCES = {
+        {"saudi", "صور السعودية"},
+        {"nature", "طبيعة ومناظر (ويكيميديا)"},
+        {"mountains", "جبال (ويكيميديا)"},
+        {"sunsets", "غروب وشروق (ويكيميديا)"},
+        {"space", "الفضاء والفلك (ويكيميديا)"},
+        {"potd", "صورة اليوم (ويكيميديا)"},
+        {"bing", "صورة اليوم (Bing)"},
+        {OWN, "صوري (مجلد في الهاتف)"},
+    };
+
+    /** seconds: how long a photo stays, background and carousel */
+    static final int[] BG_SECONDS = {60, 120, 300, 600, 900, 1800, 3600};
+    static final int[] CAROUSEL_SECONDS = {10, 15, 20, 30, 60, 120, 300};
+
+    /** the owner's village: Al-Mallaha, Al-Qatif (OpenStreetMap's centre of it) */
+    static final String HOME_CITY = "الملاحة، القطيف";
+    static final double HOME_LAT = 26.5132, HOME_LON = 49.9988;
+    static final String HOME_TZ = "Asia/Riyadh";
+
+    /** TheSportsDB's Al-Hilal */
+    static final String HILAL_ID = "136013";
+
+    private final SharedPreferences sp;
+
+    Settings(Context c) { sp = prefs(c); }
+
+    static SharedPreferences prefs(Context c) { return c.getApplicationContext().getSharedPreferences(FILE, Context.MODE_PRIVATE); }
+
+    boolean shows(String item) { return sp.getBoolean("show_" + item, true); }
+    void setShows(String item, boolean on) { sp.edit().putBoolean("show_" + item, on).apply(); }
+
+    String greetPhrase(int part) { return sp.getString("greet_" + GREET_PARTS[part][0], "").trim(); }
+    void setGreetPhrase(int part, String v) {
+        String s = v == null ? "" : v.replaceAll("[\\r\\n]+", " ").trim();
+        if (s.length() > GREET_CHARS) s = s.substring(0, GREET_CHARS).trim();
+        sp.edit().putString("greet_" + GREET_PARTS[part][0], s).apply();
+    }
+    String greetShown(int part) { String s = greetPhrase(part); return s.isEmpty() ? GREET_PARTS[part][2] : s; }
+
+    String method() { return sp.getString("method", "jafari"); }
+    void setMethod(String v) { sp.edit().putString("method", v).apply(); }
+    PrayerCalc.Method prayerMethod() { return PrayerCalc.Method.of(method()); }
+
+    /** «إخفاء العصر والعشاء»: not counted down to (prayed with Dhuhr and Maghrib); their times still divide the day */
+    boolean hideAsr() { return sp.getBoolean("hide_asr", false); }
+    boolean hideIsha() { return sp.getBoolean("hide_isha", false); }
+    void setHideAsr(boolean v) { sp.edit().putBoolean("hide_asr", v).apply(); }
+    void setHideIsha(boolean v) { sp.edit().putBoolean("hide_isha", v).apply(); }
+
+    String city() { return sp.getString("city", HOME_CITY); }
+    double lat() { return number(sp.getString("lat", null), HOME_LAT); }
+    double lon() { return number(sp.getString("lon", null), HOME_LON); }
+    String tz() { return sp.getString("tz", HOME_TZ); }
+    void setPlace(String city, String lat, String lon) {
+        sp.edit().putString("city", city.trim()).putString("lat", lat.trim()).putString("lon", lon.trim()).apply();
+    }
+
+    /** the weather of where the phone is (its last known location), the city's otherwise */
+    boolean weatherHere() { return sp.getBoolean("weather_here", true); }
+    void setWeatherHere(boolean v) { sp.edit().putBoolean("weather_here", v).apply(); }
+
+    /** «هندية ١٢٣» (as Bayti TV) or «عربية 123» */
+    boolean latinDigits() { return "latin".equals(sp.getString("digits", "hindi")); }
+    void setLatinDigits(boolean v) { sp.edit().putString("digits", v ? "latin" : "hindi").apply(); }
+
+    boolean clock24() { return sp.getBoolean("clock24", false); }
+    void setClock24(boolean v) { sp.edit().putBoolean("clock24", v).apply(); }
+
+    /** days added to the Umm al-Qura date, for a month that began a day earlier or later by sighting */
+    int hijriAdjust() { return sp.getInt("hijri_adj", 0); }
+    void setHijriAdjust(int v) { sp.edit().putInt("hijri_adj", Math.max(-2, Math.min(2, v))).apply(); }
+
+    /** the photos' slow settle and push-in; off: they only cross-fade */
+    boolean motion() { return sp.getBoolean("motion", true); }
+    void setMotion(boolean v) { sp.edit().putBoolean("motion", v).apply(); }
+
+    List<String> bgSources() { return list(sp.getString("bg_sources", "saudi,mountains,sunsets")); }
+    void setBgSources(List<String> v) { sp.edit().putString("bg_sources", join(v)).apply(); }
+    List<String> carouselSources() { return list(sp.getString("carousel_sources", "own,potd,bing")); }
+    void setCarouselSources(List<String> v) { sp.edit().putString("carousel_sources", join(v)).apply(); }
+
+    int bgSeconds() { return sp.getInt("bg_seconds", 600); }
+    void setBgSeconds(int v) { sp.edit().putInt("bg_seconds", v).apply(); }
+    int carouselSeconds() { return sp.getInt("carousel_seconds", 20); }
+    void setCarouselSeconds(int v) { sp.edit().putInt("carousel_seconds", v).apply(); }
+
+    /** the folder of the owner's photos (a tree uri the phone's file picker gave, with a kept read permission), "" for none */
+    String ownFolder() { return sp.getString("own_folder", ""); }
+    void setOwnFolder(String uri, String name) { sp.edit().putString("own_folder", uri).putString("own_folder_name", name).apply(); }
+    String ownFolderName() { return sp.getString("own_folder_name", ""); }
+
+    static String label(String[][] table, String key) {
+        for (String[] r : table) if (r[0].equals(key)) return r[1];
+        return key;
+    }
+
+    private static List<String> list(String saved) {
+        List<String> out = new ArrayList<>();
+        for (String k : saved.split(",")) {
+            String key = k.trim();
+            boolean known = false;
+            for (String[] s : SOURCES) known |= s[0].equals(key);
+            if (known && !out.contains(key)) out.add(key);
+        }
+        return out;
+    }
+
+    private static String join(List<String> v) {
+        StringBuilder b = new StringBuilder();
+        for (String s : v) { if (b.length() > 0) b.append(','); b.append(s); }
+        return b.toString();
+    }
+
+    private static double number(String s, double fallback) {
+        try { return s == null ? fallback : Double.parseDouble(s.trim()); } catch (Exception e) { return fallback; }
+    }
+}

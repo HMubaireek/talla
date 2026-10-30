@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- a gold house on the dark green of Bayti's veil -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path android:fillColor="#0B1F16" android:pathData="M54,0a54,54 0,1 1,0 108a54,54 0,1 1,0 -108z" />
+    <path android:fillColor="#DCB86F"
+        android:pathData="M54,26 L82,50 L76,50 L76,80 L60,80 L60,62 L48,62 L48,80 L32,80 L32,50 L26,50 Z" />
+</vector>
