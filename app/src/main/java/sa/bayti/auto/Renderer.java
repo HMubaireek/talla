@@ -208,6 +208,60 @@ final class Renderer {
 
     private void shadow(float radius) { text.setShadowLayer(radius, 0, 2, 0x99000000); }
 
+    // ---------------------------------------------------------------- the media card (MediaService)
+
+    /** the media card's three lines */
+    static final class Lines {
+        final String title, subtitle, more;
+        Lines(String title, String subtitle, String more) { this.title = title; this.subtitle = subtitle; this.more = more; }
+    }
+
+    /**
+     * The media card's picture, size x size: the photo, still, with the clock large in the middle and the phrase under it (a small
+     * picture, so nothing else); and its lines: the time and the phrase, the next prayer (a weather warning first), the dates and the
+     * weather.
+     */
+    Lines card(Canvas cv, int size, Hub hub, long now) {
+        Settings s = hub.settings;
+        boolean latin = s.latinDigits();
+        String tz = s.tz();
+        float k = size / 480f, W = 480, H = 480;
+        cv.save();
+        cv.scale(k, k);
+        background(cv, W, H, 0, W, hub, now, false);
+        String[] c = Texts.clock(now, tz, s.clock24(), latin);
+        String phrase = s.greetShown(Prayers.part(s, now));
+        text.setTypeface(bold);
+        text.setTextSize(150);
+        float tw = text.measureText(c[0]);
+        float size1 = 150 * Math.min(1, 420 / tw);
+        text.setTextSize(size1);
+        text.setTextAlign(Paint.Align.CENTER);
+        text.setColor(SAND);
+        text.setShadowLayer(18, 0, 3, 0x88000000);
+        cv.drawText(c[0], W / 2, 250, text);
+        shadow(10);
+        line(cv, phrase, W / 2, 330, medium, 40, GOLD, 420, Paint.Align.CENTER);
+        text.clearShadowLayer();
+        cv.restore();
+
+        String title = c[0] + (c[1].isEmpty() ? "" : " " + c[1]) + " · " + phrase;
+        Weather wx = hub.weather;
+        boolean fresh = wx != null && wx.fresh(now);
+        String warn = fresh && s.shows("warnings") ? wx.warning(latin) : "";
+        String subtitle = warn;
+        if (subtitle.isEmpty() && s.shows("prayer")) {
+            Prayers.Next n = Prayers.next(s, now);
+            if (n != null) subtitle = n.name + " " + Texts.clock12(n.at, tz, s.clock24(), latin) + " · " + Texts.remaining(n.at - now, latin);
+        }
+        String more = Texts.hijri(now, tz, s.hijriAdjust(), latin);
+        if (fresh && s.shows("weather")) {
+            String sky = Texts.skyWord(wx.code, wx.dust);
+            more += " · " + Texts.digits(Math.round(wx.temp) + "°", latin) + (sky.isEmpty() ? "" : " " + sky);
+        }
+        return new Lines(title, subtitle, more);
+    }
+
     // ---------------------------------------------------------------- the photo, as Bayti TV's page draws it
 
     /** the photo covers the whole surface, centred on the part the car shows (aL..aR) */

@@ -47,6 +47,7 @@ public final class SettingsActivity extends Activity {
     protected void onCreate(Bundle saved) {
         super.onCreate(saved);
         s = new Settings(this);
+        MediaService.enable(this, s.mediaCard());   // the service follows the setting (after a restore, or a fresh install)
         try {
             regular = Typeface.createFromAsset(getAssets(), "fonts/Tajawal-Regular.ttf");
             bold = Typeface.createFromAsset(getAssets(), "fonts/Tajawal-Bold.ttf");
@@ -128,8 +129,21 @@ public final class SettingsActivity extends Activity {
         sources(s.carouselSources(), s::setCarouselSources);
         choice("تتبدل كل", seconds(Settings.CAROUSEL_SECONDS), String.valueOf(s.carouselSeconds()), v -> s.setCarouselSeconds(Integer.parseInt(v)));
         toggle("حركة الصور الهادئة (كما في بيتي)", s.motion(), s::setMotion);
-        choice("تخفيف الإضاءة ليلًا (حين تنتقل السيارة إلى وضعها الليلي)", Settings.NIGHT_DIM, String.valueOf(s.nightDim()),
-                v -> s.setNightDim(Integer.parseInt(v)));
+
+        section("تخفيف الإضاءة");
+        note("يُعتم الصورة كلها، والكتابة بقدر أقل لتبقى واضحة.");
+        choice("متى", Settings.NIGHT_MODES, s.nightMode(), s::setNightMode);
+        choice("بأي قدر", Settings.NIGHT_DIM, String.valueOf(s.nightDim()), v -> s.setNightDim(Integer.parseInt(v)));
+
+        section("بطاقة الوسائط");
+        note("في الشاشة المقسومة يترك Android Auto المساحة الكبيرة لتطبيق خرائط واحد (مثل خرائط Google)، وبجانبها بطاقة تطبيق الوسائط. "
+                + "حين تُشغَّل هذه يظهر «بيتي في السيارة» أيضًا تطبيقَ وسائط: بطاقته صورة الخلفية مع الساعة، وسطورها الوقت والصلاة القادمة "
+                + "(أو تنبيه الطقس) والتاريخ والطقس، و«التالي» فيها يبدّل الخلفية. لا تشغّل صوتًا، لكنها تأخذ مكان بطاقة YouTube Music "
+                + "ما دامت مختارة. بعد تغييرها افصل الهاتف عن السيارة وأعد وصله.");
+        toggle("بيتي بطاقةَ وسائط بجانب الخريطة", s.mediaCard(), on -> {
+            s.setMediaCard(on);
+            MediaService.enable(this, on);
+        });
 
         section("صوري");
         folderLabel = note(folderText());
@@ -143,8 +157,8 @@ public final class SettingsActivity extends Activity {
             requestPermissions(new String[]{Manifest.permission.ACCESS_COARSE_LOCATION}, ASK_LOCATION);
 
         section("في السيارة");
-        note("يظهر التطبيق في قائمة تطبيقات Android Auto باسم «بيتي في السيارة». الزرّان «التالي» و«خلفية» يُبدّلان الصور، "
-                + "ويخفيهما Android Auto بعد ثوانٍ.");
+        note("يظهر التطبيق في قائمة تطبيقات Android Auto باسم «بيتي في السيارة». زرّه الوحيد يبدّل صورة الخلفية، "
+                + "ويخفيه Android Auto بعد ثوانٍ.");
         note("الخط: Tajawal (رخصة OFL)");
         note("البيانات: Open-Meteo · TheSportsDB · ويكيميديا · Bing");
     }

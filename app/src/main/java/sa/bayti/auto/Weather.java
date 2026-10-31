@@ -84,24 +84,31 @@ final class Weather {
             String q = "?latitude=" + String.format(Locale.US, "%.4f", lat) + "&longitude=" + String.format(Locale.US, "%.4f", lon)
                     + "&timezone=" + URLEncoder.encode(s.tz(), "UTF-8");
             JSONObject root = new JSONObject(Net.text("https://api.open-meteo.com/v1/forecast" + q
-                    + "&current=temperature_2m,weather_code,wind_gusts_10m,visibility"
-                    + "&hourly=weather_code,wind_gusts_10m,visibility&forecast_hours=3"
-                    + "&daily=temperature_2m_max,temperature_2m_min&forecast_days=1"));
+                    + "&current=temperature_2m,weather_code&daily=temperature_2m_max,temperature_2m_min&forecast_days=1"));
             JSONObject cur = root.getJSONObject("current");
             JSONObject daily = root.optJSONObject("daily");
-            double gust = cur.optDouble("wind_gusts_10m"), vis = cur.optDouble("visibility");
+            // the warnings' readings, asked apart: when this fails, the weather still shows, without them
+            double gust = Double.NaN, vis = Double.NaN;
             int worst = -1;
-            JSONObject hourly = root.optJSONObject("hourly");
-            if (hourly != null) {
-                JSONArray codes = hourly.optJSONArray("weather_code"), gusts = hourly.optJSONArray("wind_gusts_10m"),
-                        viss = hourly.optJSONArray("visibility");
-                for (int i = 0; i < 3; i++) {
-                    if (codes != null && i < codes.length()) worst = Math.max(worst, codes.optInt(i, -1));
-                    double g = gusts == null ? Double.NaN : gusts.optDouble(i);
-                    if (!Double.isNaN(g) && (Double.isNaN(gust) || g > gust)) gust = g;
-                    double v = viss == null ? Double.NaN : viss.optDouble(i);
-                    if (!Double.isNaN(v) && (Double.isNaN(vis) || v < vis)) vis = v;
+            try {
+                JSONObject next = new JSONObject(Net.text("https://api.open-meteo.com/v1/forecast" + q
+                        + "&current=wind_gusts_10m,visibility&hourly=weather_code,wind_gusts_10m,visibility&forecast_hours=3"));
+                JSONObject soon = next.optJSONObject("current");
+                if (soon != null) { gust = soon.optDouble("wind_gusts_10m"); vis = soon.optDouble("visibility"); }
+                JSONObject hourly = next.optJSONObject("hourly");
+                if (hourly != null) {
+                    JSONArray codes = hourly.optJSONArray("weather_code"), gusts = hourly.optJSONArray("wind_gusts_10m"),
+                            viss = hourly.optJSONArray("visibility");
+                    for (int i = 0; i < 3; i++) {
+                        if (codes != null && i < codes.length()) worst = Math.max(worst, codes.optInt(i, -1));
+                        double g = gusts == null ? Double.NaN : gusts.optDouble(i);
+                        if (!Double.isNaN(g) && (Double.isNaN(gust) || g > gust)) gust = g;
+                        double v = viss == null ? Double.NaN : viss.optDouble(i);
+                        if (!Double.isNaN(v) && (Double.isNaN(vis) || v < vis)) vis = v;
+                    }
                 }
+            } catch (Exception ignored) {
+                // no warnings this time
             }
             double high = daily == null ? Double.NaN : daily.getJSONArray("temperature_2m_max").optDouble(0);
             double low = daily == null ? Double.NaN : daily.getJSONArray("temperature_2m_min").optDouble(0);

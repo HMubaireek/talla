@@ -35,7 +35,9 @@ Android Auto only lists an app like this one when Google Play is recorded as its
 9. **In the car.** Plug the phone in. Open the app grid on the Mazda screen and choose **بيتي في السيارة**.
    - One pale button (a small landscape) moves to the next background. Android Auto hides it after a few seconds; a touch or the knob
      brings it back. (The navigation template must have at least one button.)
-   - At night (when the car switches to its night look) the screen dims; «تخفيف الإضاءة ليلًا» sets how much.
+   - «تخفيف الإضاءة» dims the screen: automatically when the car switches to its night look, always, or never; and by how much.
+   - «بطاقة الوسائط» (off by default) adds Bayti as a media app as well, so in split view it can sit as a card beside Google Maps.
+     It plays no sound, but takes the media card's place from YouTube Music while it is the chosen media app.
 
 **Updates:** install each new APK the same way, through UnknownAuto. Installing it any other way loses the Play attribution, and the app disappears from the car until you reinstall.
 

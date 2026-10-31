@@ -127,10 +127,23 @@ final class Settings {
     boolean motion() { return sp.getBoolean("motion", true); }
     void setMotion(boolean v) { sp.edit().putBoolean("motion", v).apply(); }
 
-    /** «تخفيف الإضاءة ليلًا»: how much darker (percent) the screen is while the car is in its night mode */
-    static final String[][] NIGHT_DIM = {{"0", "بلا تخفيف"}, {"25", "خفيف"}, {"40", "متوسط"}, {"55", "قوي"}};
+    /** «تخفيف الإضاءة»: auto (while the car is in its night mode), always on, or off; and how much darker (percent) */
+    static final String[][] NIGHT_MODES = {{"auto", "تلقائي: حين تنتقل السيارة إلى وضعها الليلي"}, {"on", "دائمًا"}, {"off", "أبدًا"}};
+    static final String[][] NIGHT_DIM = {{"25", "خفيف"}, {"40", "متوسط"}, {"55", "قوي"}};
+    String nightMode() { return sp.getString("night_mode", "auto"); }
+    void setNightMode(String v) { sp.edit().putString("night_mode", v).apply(); }
     int nightDim() { return sp.getInt("night_dim", 40); }
     void setNightDim(int v) { sp.edit().putInt("night_dim", Math.max(0, Math.min(70, v))).apply(); }
+
+    /** the dimming now (0 to 1), carNight being the car's night mode */
+    float dim(boolean carNight) {
+        String m = nightMode();
+        return "off".equals(m) || ("auto".equals(m) && !carNight) ? 0 : nightDim() / 100f;
+    }
+
+    /** «بطاقة الوسائط» (MediaService), off unless switched on */
+    boolean mediaCard() { return sp.getBoolean("media_card", false); }
+    void setMediaCard(boolean v) { sp.edit().putBoolean("media_card", v).apply(); }
 
     List<String> bgSources() { return list(sp.getString("bg_sources", "saudi,mountains,sunsets")); }
     void setBgSources(List<String> v) { sp.edit().putString("bg_sources", join(v)).apply(); }

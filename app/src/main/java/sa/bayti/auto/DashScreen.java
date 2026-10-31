@@ -24,7 +24,7 @@ import androidx.lifecycle.LifecycleOwner;
  * The car's screen: a navigation template, which leaves the whole screen to the app's own drawing (the "map"). The template must have
  * an action strip with one action at least; ours is a single pale icon (the next background), which Android Auto hides after a few
  * seconds and brings back on a touch or the knob. It floats over the drawing and takes no room from it. The drawing itself is
- * Renderer's, on the surface the car gives, from the hub's thread, dimmed while the car is in its night mode.
+ * Renderer's, on the surface the car gives, from the hub's thread, dimmed as «تخفيف الإضاءة» says (auto: with the car's night mode).
  */
 final class DashScreen extends Screen implements SurfaceCallback, Hub.Target {
     private final Hub hub;
@@ -104,7 +104,7 @@ final class DashScreen extends Screen implements SurfaceCallback, Hub.Target {
         Canvas cv = null;
         try {
             cv = s.lockHardwareCanvas();
-            float dim = getCarContext().isDarkMode() ? hub.settings.nightDim() / 100f : 0;
+            float dim = hub.settings.dim(getCarContext().isDarkMode());
             return renderer.draw(cv, width, height, visible, dim, hub, now);
         } catch (RuntimeException e) {
             return false;   // the surface went while drawing: the next one comes with onSurfaceAvailable

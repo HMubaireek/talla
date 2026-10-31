@@ -37,7 +37,7 @@ final class PreviewView extends View implements Hub.Target {
         hub.invalidate();
     }
 
-    /** as the car shows it in its night mode, with the settings' dimming */
+    /** as the car shows it in its night mode (the dimming follows «تخفيف الإضاءة») */
     void setNight(boolean on) {
         night = on;
         hub.invalidate();
@@ -66,7 +66,7 @@ final class PreviewView extends View implements Hub.Target {
     public boolean frame(long now) {
         if (back == null) back = Bitmap.createBitmap(W, H, Bitmap.Config.ARGB_8888);
         Canvas cv = new Canvas(back);
-        float dim = night ? hub.settings.nightDim() / 100f : 0;
+        float dim = hub.settings.dim(night);
         boolean moving = renderer.draw(cv, W, H, split ? splitArea : null, dim, hub, now);
         if (split) {
             side.setColor(0xFF101418);

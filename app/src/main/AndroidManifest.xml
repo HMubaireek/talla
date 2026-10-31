@@ -33,6 +33,16 @@
             </intent-filter>
         </service>
 
+        <!-- «بطاقة الوسائط»: disabled until switched on in the settings (MediaService.enable) -->
+        <service
+            android:name=".MediaService"
+            android:enabled="false"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.media.browse.MediaBrowserService" />
+            </intent-filter>
+        </service>
+
         <activity
             android:name=".SettingsActivity"
             android:exported="true"
