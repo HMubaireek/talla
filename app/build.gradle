@@ -5,7 +5,7 @@ plugins {
 // versionCode = the CI run (it only grows, and «التحديث من الهاتف» compares it); versionName = 2.<runs since 2.0's>.
 // VERSION_BASE is the run number of the 2.0 build on master; a new major version sets the major and a new base.
 def RUN = (System.getenv('GITHUB_RUN_NUMBER') ?: '0') as int
-def VERSION_BASE = 9
+def VERSION_BASE = 10
 
 android {
     namespace 'sa.talla'
