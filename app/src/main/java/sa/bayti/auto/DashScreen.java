@@ -13,22 +13,25 @@ import androidx.car.app.SurfaceCallback;
 import androidx.car.app.SurfaceContainer;
 import androidx.car.app.model.Action;
 import androidx.car.app.model.ActionStrip;
+import androidx.car.app.model.CarIcon;
 import androidx.car.app.model.Template;
 import androidx.car.app.navigation.model.NavigationTemplate;
+import androidx.core.graphics.drawable.IconCompat;
 import androidx.lifecycle.DefaultLifecycleObserver;
 import androidx.lifecycle.LifecycleOwner;
 
 /**
- * The car's screen: a navigation template, which leaves the whole screen to the app's own drawing (the "map"), with two buttons the
- * knob can reach («التالي» for the carousel, «خلفية» for the background). Android Auto hides the buttons after a few seconds.
- * The drawing itself is Renderer's, on the surface the car gives, from the hub's thread.
+ * The car's screen: a navigation template, which leaves the whole screen to the app's own drawing (the "map"). The template must have
+ * an action strip with one action at least; ours is a single invisible one (the next carousel photo, for the knob), which Android
+ * Auto hides after a few seconds anyway. The drawing itself is Renderer's, on the surface the car gives, from the hub's thread.
  */
 final class DashScreen extends Screen implements SurfaceCallback, Hub.Target {
     private final Hub hub;
     private final Renderer renderer;
     private Surface surface;
     private int width, height;
-    private Rect stable;
+    /** the part of the surface the car shows uncovered (in split view, the app's panel); null until the car says */
+    private Rect visible;
 
     DashScreen(@NonNull CarContext carContext) {
         super(carContext);
@@ -51,9 +54,9 @@ final class DashScreen extends Screen implements SurfaceCallback, Hub.Target {
     @NonNull
     @Override
     public Template onGetTemplate() {
+        CarIcon none = new CarIcon.Builder(IconCompat.createWithResource(getCarContext(), R.drawable.ic_none)).build();
         ActionStrip strip = new ActionStrip.Builder()
-                .addAction(new Action.Builder().setTitle("التالي").setOnClickListener(hub::nextCarousel).build())
-                .addAction(new Action.Builder().setTitle("خلفية").setOnClickListener(hub::nextBackground).build())
+                .addAction(new Action.Builder().setIcon(none).setOnClickListener(hub::nextCarousel).build())
                 .build();
         return new NavigationTemplate.Builder().setActionStrip(strip).build();
     }
@@ -74,15 +77,16 @@ final class DashScreen extends Screen implements SurfaceCallback, Hub.Target {
         hub.handler.post(() -> surface = null);
     }
 
+    /** the stable area leaves out the action strip's band at the top, which moved the whole layout; only the visible area is used */
     @Override
-    public void onStableAreaChanged(@NonNull Rect area) {
-        final Rect a = new Rect(area);
-        hub.handler.post(() -> stable = a);
-        hub.invalidate();
-    }
+    public void onStableAreaChanged(@NonNull Rect area) { }
 
     @Override
-    public void onVisibleAreaChanged(@NonNull Rect area) { }
+    public void onVisibleAreaChanged(@NonNull Rect area) {
+        final Rect a = new Rect(area);
+        hub.handler.post(() -> visible = a);
+        hub.invalidate();
+    }
 
     /** a swipe on the screen (parked, on a touch screen): the carousel's next photo */
     @Override
@@ -99,7 +103,7 @@ final class DashScreen extends Screen implements SurfaceCallback, Hub.Target {
         Canvas cv = null;
         try {
             cv = s.lockHardwareCanvas();
-            return renderer.draw(cv, width, height, stable, hub, now);
+            return renderer.draw(cv, width, height, visible, hub, now);
         } catch (RuntimeException e) {
             return false;   // the surface went while drawing: the next one comes with onSurfaceAvailable
         } finally {

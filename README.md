@@ -33,8 +33,8 @@ Android Auto only lists an app like this one when Google Play is recorded as its
    - Android Auto settings → *Version* → tap it 10 times
    - in the ⋮ menu: Developer settings → *Unknown sources* on
 9. **In the car.** Plug the phone in. Open the app grid on the Mazda screen and choose **بيتي في السيارة**.
-   - Use the knob to reach the two buttons: «التالي» (next carousel photo) and «خلفية» (another background).
-   - Android Auto hides the buttons after a few seconds.
+   - There are no buttons on the screen. (The navigation template needs one action, so there is a single invisible one; the knob can
+     still reach it to move the carousel on.)
 
 **Updates:** install each new APK the same way, through UnknownAuto. Installing it any other way loses the Play attribution, and the app disappears from the car until you reinstall.
 
@@ -53,7 +53,9 @@ Google Play would not accept a non-navigation app in that category. That's fine 
 ## Driving
 
 - **Drawing rate.** The screen redraws once a minute for the clock. It animates only while a photo cross-fades or settles (about 30 frames a second, for at most a minute), and the settle can be switched off («حركة الصور الهادئة»).
-- **Touch.** Mazda locks the touchscreen while moving; the knob still reaches the two buttons. Parked, a swipe on the screen moves the carousel on.
+- **Touch.** Mazda locks the touchscreen while moving. Parked, a swipe on the screen moves the carousel on.
+- **Split view.** In Android Auto's split view the app gets a panel of the screen; the layout and the photo follow that panel. Only one
+  navigation app can hold the map side, so this app and Google Maps can't be on the screen together.
 
 ## Data
 

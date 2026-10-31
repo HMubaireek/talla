@@ -108,10 +108,8 @@ final class Hub implements SharedPreferences.OnSharedPreferenceChangeListener {
         handler.postDelayed(loop, moving ? 33 : Math.max(250, next));
     }
 
-    /** the knob's «التالي»: the carousel's next photo now */
+    /** the carousel's next photo now (a swipe, the knob, a tap on the preview) */
     void nextCarousel() { handler.post(() -> { carousel.nextAt = 0; invalidate(); }); }
-
-    void nextBackground() { handler.post(() -> { background.nextAt = 0; invalidate(); }); }
 
     // ---------------------------------------------------------------- what is due
 

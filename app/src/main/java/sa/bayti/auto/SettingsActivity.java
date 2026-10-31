@@ -77,6 +77,7 @@ public final class SettingsActivity extends Activity {
         preview.setClipToOutline(true);
         preview.setBackground(round);
         list.addView(preview, new LinearLayout.LayoutParams(-1, -2));
+        toggle("معاينة الشاشة المقسومة (الخريطة مع بطاقات أندرويد أوتو)", false, preview::setSplit);
 
         section("ما يظهر في السيارة");
         for (String[] item : Settings.ITEMS) toggle(item[1], s.shows(item[0]), on -> s.setShows(item[0], on));
@@ -91,6 +92,7 @@ public final class SettingsActivity extends Activity {
 
         section("الصلاة");
         choice("طريقة الحساب", Settings.PRAYER_METHODS, s.method(), s::setMethod);
+        toggle("الصلاة القادمة فقط حين يبقى لها أقل من ساعة", s.prayerSoonOnly(), s::setPrayerSoonOnly);
         toggle("إخفاء العصر (تُصلّى مع الظهر)", s.hideAsr(), s::setHideAsr);
         toggle("إخفاء العشاء (تُصلّى مع المغرب)", s.hideIsha(), s::setHideIsha);
 

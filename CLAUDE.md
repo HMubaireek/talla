@@ -24,7 +24,10 @@ on the car's display.
 - **Phone:** Samsung Galaxy S24+ (SM-S926B), **Android 17** (SDK 37), Android Auto **18.0**, adb serial `RZCXB0B1YNF`. It has a
   managed work profile (Android Device Policy / clouddpc; extra users 11 and 150), so `adb shell` commands touching every user can
   fail with "Shell does not have permission to access user 150".
-- **Not yet verified in the car** (as of 2026-10-31). If the car shows something wrong, ask for a photo of the screen.
+- **Seen in the car** (photos, 2026-10-30). The surface is the screen right of Android Auto's rail; in split view the surface stays
+  full size and the visible area shrinks to the left ~2/3 panel. The stable area leaves out a band at the top for the action strip
+  and once came with a large left inset, which moved the whole layout, so only the visible area's sides are used now. If the car
+  shows something wrong, ask for a photo of the screen.
 
 ## Why it is built this way
 
@@ -119,11 +122,11 @@ Tried on this phone, 2026-10-30:
 | File | What it does |
 |---|---|
 | `CarService` | The `CarAppService` with one `Session`, whose screen is `DashScreen`. |
-| `DashScreen` | `NavigationTemplate` with an action strip: «التالي» (next carousel photo) and «خلفية» (next background). Implements `SurfaceCallback` (`lockHardwareCanvas` on the surface; stable area; `onFling` = next carousel photo). |
+| `DashScreen` | `NavigationTemplate` with one invisible action (`ic_none`; the template requires an action strip and the strip needs one action; it moves the carousel on). Implements `SurfaceCallback` (`lockHardwareCanvas` on the surface; visible area, sides only; `onFling` = next carousel photo). |
 | `Hub` | Singleton that owns the state on one HandlerThread, `bayti-draw`; every drawing happens on it. Two IO threads fetch and decode. Frames: ~30 fps only while a fade, settle or push-in runs, otherwise one per minute and on new data. A `Deck` = the photo list, index, cur/prev bitmaps and timing for the background or the carousel. A prefs listener redraws at once when the phone's settings change. |
-| `Renderer` | Draws everything on a Canvas, laid out on a 480-unit-high design space: background photo (cover at 26% from the top; 60 s settle from 1.055 to 1.03 scale; darkness 1-d; 2 s crossfade), veil gradients, grain, top and bottom veils. Right column: Hijri, Gregorian, gold rule, 112-unit clock, the phrase. Left: weather, then the carousel (rounded 16:9, 650 ms fade, 9 s push-in from 1.06, dots with a gold dash). Bottom: the prayer card and the Al-Hilal card (with badges). |
-| `Settings` | All preferences (file `bayti_auto`): `show_<item>` toggles, `greet_morning/day/evening/night`, method, hide_asr/isha, city/lat/lon/tz, weather_here, digits, clock24, hijri_adj, motion, bg/carousel sources and seconds, own_folder. |
-| `SettingsActivity` + `PreviewView` | The phone UI: plain framework views, RTL, Tajawal, live preview. |
+| `Renderer` | Draws everything on a Canvas, laid out on a 480-unit-high design space: background photo (cover at 26% from the top; 60 s settle from 1.055 to 1.03 scale; darkness 1-d; 2 s crossfade), veil gradients, grain, top and bottom veils. Right column: Hijri, Gregorian, gold rule, 112-unit clock, the phrase. Left: weather, then the carousel (rounded 16:9, 650 ms fade, 9 s push-in from 1.06, dots with a gold dash). Bottom corners, straight on the photo (no card backgrounds): the next prayer on the right (only in the hour before it unless `prayer_soon` is off), Al-Hilal's match on the left. The photo is centred on the visible panel; type shrinks to 0.8 in a narrow panel and the clock to fit its column. |
+| `Settings` | All preferences (file `bayti_auto`): `show_<item>` toggles, `greet_morning/day/evening/night`, method, hide_asr/isha, prayer_soon, city/lat/lon/tz, weather_here, digits, clock24, hijri_adj, motion, bg/carousel sources and seconds, own_folder. |
+| `SettingsActivity` + `PreviewView` | The phone UI: plain framework views, RTL, Tajawal, live preview (a switch shows it as the split view). |
 | `PrayerCalc` / `Prayers` | Our own solar-position prayer arithmetic (matches Aladhan within 1 minute for Jafari and Umm al-Qura, tested on 4 dates), and the next prayer / part of the day. |
 | `Texts` | Arabic digits, Hijri date (ICU islamic-umalqura + adjustment), Gregorian date, clock, sky words, «بعد ساعتين و…», match day words. |
 | `Weather` | Open-Meteo forecast + air quality (dust); the phone's last known location (no new GPS fix) with Geocoder for an Arabic place name; every 30 minutes; hidden when older than 3 hours. |
@@ -160,7 +163,7 @@ files (also OFL).
 
 ## Ideas not done yet
 
-- Confirm the layout on the real car screen; tune it for the action strip and the stable area.
+- Check the new layout (corners, no buttons, split view) on the real car screen.
 - An option for a second team, or several.
 - A "show credits" line for Wikimedia photos (Bayti TV shows them small at the bottom left).
 - A night dimming curve, using `CarContext.isDarkMode()`.

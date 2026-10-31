@@ -20,8 +20,8 @@ import java.util.Random;
 
 /**
  * Draws Bayti's screen on a canvas: the photo with Bayti TV's look (its slow settle, its darkness, the veil, the grain and the shades at
- * the corners), the dates and the clock on the right, the weather and the carousel on the left, and the cards of the next prayer and of
- * Al-Hilal's next match along the bottom. Laid out on a screen 480 units high (Mazda's 800 x 480 is 1:1) and as wide as the car's.
+ * the corners), the dates and the clock on the right, the weather and the carousel on the left, the next prayer in the bottom right
+ * corner and Al-Hilal's next match in the bottom left one, straight on the photo. Laid out on a screen 480 units high (Mazda's 800 x 480 is 1:1) and as wide as the car's.
  * Only the hub's thread calls it.
  */
 final class Renderer {
@@ -60,109 +60,129 @@ final class Renderer {
     }
 
     /**
-     * One frame on a canvas w x h; area is the part of it the car keeps clear of its own buttons (null: all of it).
+     * One frame on a canvas w x h; area is the part of it the car shows uncovered (Android Auto's split view leaves the app only a
+     * panel of it), null for all of it. Only its sides are used: its top and bottom move with the car's buttons.
      * True while something moves (a fade, a settle, a push-in), so the hub draws the next frame soon.
      */
     boolean draw(Canvas cv, int w, int h, Rect area, Hub hub, long now) {
         Settings s = hub.settings;
         boolean latin = s.latinDigits(), motion = s.motion();
         float k = h / 480f, W = w / k, H = 480;
+        float aL = 0, aR = W;
+        if (area != null && area.width() >= w * .4f && area.height() >= h * .6f) {
+            aL = Math.max(0, area.left / k);
+            aR = Math.min(W, area.right / k);
+        }
         cv.save();
         cv.scale(k, k);
-        boolean moving = background(cv, W, H, hub, now, motion);
+        boolean moving = background(cv, W, H, aL, aR, hub, now, motion);
 
-        // the content keeps to the area the car leaves clear, unless that is a sliver
-        float L = 22, T = 18, R = W - 22, B = H - 16;
-        if (area != null && area.width() > w * .6f && area.height() > h * .6f) {
-            L = Math.max(L, area.left / k + 14); T = Math.max(T, area.top / k + 10);
-            R = Math.min(R, area.right / k - 14); B = Math.min(B, area.bottom / k - 10);
-        }
+        float L = aL + 24, T = 18, R = aR - 24, B = H - 18, CW = R - L;
+        // a narrow panel (the split view) gets smaller type
+        float z = Math.max(.8f, Math.min(1, CW / 640));
         String tz = s.tz();
 
-        // ---- right: the dates, the clock and the phrase
+        // ---- right: the dates, the clock and the phrase, at most 56% of the width
+        float rightW = CW * .56f;
         float y = T;
         if (s.shows("hijri")) {
-            y += 24;
-            line(cv, Texts.hijri(now, tz, s.hijriAdjust(), latin), R, y, medium, 22, SAND, R - L - 40, Paint.Align.RIGHT);
+            y += 24 * z;
+            shadow(10);
+            line(cv, Texts.hijri(now, tz, s.hijriAdjust(), latin), R, y, medium, 22 * z, SAND, rightW, Paint.Align.RIGHT);
         }
         if (s.shows("greg")) {
-            y += 22;
-            line(cv, Texts.gregorian(now, tz, latin), R, y, light, 16, DIM, R - L - 40, Paint.Align.RIGHT);
+            y += 22 * z;
+            shadow(10);
+            line(cv, Texts.gregorian(now, tz, latin), R, y, light, 16 * z, DIM, rightW, Paint.Align.RIGHT);
         }
+        text.clearShadowLayer();
         if (s.shows("hijri") || s.shows("greg")) {
             y += 12;
             fill.setShader(new LinearGradient(R, 0, R - 110, 0, GOLD, GOLD & 0x00FFFFFF, Shader.TileMode.CLAMP));
             cv.drawRect(R - 110, y, R, y + 1.2f, fill);
             fill.setShader(null);
         }
-        float rightW = (R - L) * .52f;
+        float clockW = 0;
         if (s.shows("clock")) {
             String[] c = Texts.clock(now, tz, s.clock24(), latin);
-            y += 104;
+            // 112 units high, smaller when the time and its «م» don't fit the column
             text.setTypeface(bold);
             text.setTextSize(112);
+            float full = text.measureText(c[0]);
+            text.setTypeface(medium);
+            text.setTextSize(30);
+            float ampm = c[1].isEmpty() ? 0 : text.measureText(c[1]) + 10;
+            float size = 112 * Math.min(1, rightW / (full + ampm));
+            y += size * .93f;
+            text.setTypeface(bold);
+            text.setTextSize(size);
             text.setTextAlign(Paint.Align.RIGHT);
             text.setColor(SAND);
             text.setShadowLayer(18, 0, 3, 0x66000000);
             cv.drawText(c[0], R, y, text);
+            float cw = text.measureText(c[0]);
+            clockW = cw;
             if (!c[1].isEmpty()) {
-                float cw = text.measureText(c[0]);
                 text.setTypeface(medium);
-                text.setTextSize(30);
+                text.setTextSize(30 * size / 112);
                 text.setColor(GOLD);
                 cv.drawText(c[1], R - cw - 10, y, text);
+                clockW += text.measureText(c[1]) + 10;
             }
             text.clearShadowLayer();
         }
         if (s.shows("phrase")) {
-            y += s.shows("clock") ? 46 : 40;
+            y += s.shows("clock") ? 46 * z : 40 * z;
             int part = Prayers.part(s, now);
-            text.setShadowLayer(10, 0, 2, 0x88000000);
-            line(cv, s.greetShown(part), R, y, medium, 30, GOLD, rightW, Paint.Align.RIGHT);
+            shadow(10);
+            line(cv, s.greetShown(part), R, y, medium, 30 * z, GOLD, rightW, Paint.Align.RIGHT);
             text.clearShadowLayer();
         }
 
-        // ---- bottom: the cards
-        float cardH = 80, cardTop = B - cardH;
-        boolean prayer = s.shows("prayer"), hilal = s.shows("hilal") && hub.match != null;
-        int cards = (prayer ? 1 : 0) + (hilal ? 1 : 0);
-        if (cards > 0) {
-            float gap = 12, cw = Math.min(330, ((R - L) - gap) / 2), x = R;
-            if (prayer) { prayerCard(cv, x - cw, cardTop, x, B, s, now, latin); x -= cw + gap; }
-            if (hilal) hilalCard(cv, x - cw, cardTop, x, B, hub, now, latin);
-        }
-        float bottomOfLeft = cards > 0 ? cardTop - 12 : B;
+        // ---- the bottom corners: the next prayer on the right, Al-Hilal's match on the left, on the photo itself
+        float cornerW = CW / 2 - 14;
+        Prayers.Next next = s.shows("prayer") ? Prayers.next(s, now) : null;
+        if (next != null && s.prayerSoonOnly() && next.at - now > 3600_000L) next = null;
+        if (next != null) prayer(cv, R, B, cornerW, next, s, now, latin);
+        boolean hilal = s.shows("hilal") && hub.match != null;
+        if (hilal) hilal(cv, L, B, cornerW, hub, now, latin);
+        float bottomOfLeft = hilal ? B - 84 : B;
 
-        // ---- left: the weather and the carousel
+        // ---- left: the weather and the carousel, beside the right column
+        float leftW = CW - Math.max(clockW, CW * .4f) - 28;
         float ly = T;
         Weather wx = hub.weather;
         if (s.shows("weather") && wx != null && wx.fresh(now)) {
-            text.setShadowLayer(12, 0, 2, 0x88000000);
+            shadow(12);
             String t = Texts.digits(Math.round(wx.temp) + "°", latin);
             text.setTypeface(bold);
-            text.setTextSize(46);
+            text.setTextSize(46 * z);
             text.setColor(SAND);
             text.setTextAlign(Paint.Align.LEFT);
-            cv.drawText(t, L, ly + 44, text);
+            cv.drawText(t, L, ly + 44 * z, text);
             float tw = text.measureText(t);
+            float topW = CW - rightW - 16 - tw - 12;
             String sky = Texts.skyWord(wx.code, wx.dust);
-            line(cv, sky.isEmpty() ? wx.place : sky, L + tw + 12, ly + 24, medium, 18, SAND, rightW, Paint.Align.LEFT);
-            if (!sky.isEmpty()) line(cv, wx.place, L + tw + 12, ly + 44, light, 15, DIM, rightW, Paint.Align.LEFT);
+            line(cv, sky.isEmpty() ? wx.place : sky, L + tw + 12, ly + 24 * z, medium, 18 * z, SAND, topW, Paint.Align.LEFT);
+            if (!sky.isEmpty()) line(cv, wx.place, L + tw + 12, ly + 44 * z, light, 15 * z, DIM, topW, Paint.Align.LEFT);
             if (!Double.isNaN(wx.high) && !Double.isNaN(wx.low)) {
                 line(cv, "العظمى " + Texts.digits(Math.round(wx.high) + "°", latin) + "  الصغرى " + Texts.digits(Math.round(wx.low) + "°", latin),
-                        L, ly + 68, light, 14, DIM, rightW, Paint.Align.LEFT);
+                        L, ly + 68 * z, light, 14 * z, DIM, CW - rightW - 16, Paint.Align.LEFT);
             }
             text.clearShadowLayer();
-            ly += 82;
+            ly += 82 * z;
         }
-        if (s.shows("carousel")) moving |= carousel(cv, L, ly + 8, (R - L) * .44f, bottomOfLeft, hub.carousel, now, motion);
+        if (s.shows("carousel")) moving |= carousel(cv, L, ly + 8, Math.min(CW * .44f - 8, leftW), bottomOfLeft, hub.carousel, now, motion);
         cv.restore();
         return moving;
     }
 
+    private void shadow(float radius) { text.setShadowLayer(radius, 0, 2, 0x99000000); }
+
     // ---------------------------------------------------------------- the photo, as Bayti TV's page draws it
 
-    private boolean background(Canvas cv, float W, float H, Hub hub, long now, boolean motion) {
+    /** the photo covers the whole surface, centred on the part the car shows (aL..aR) */
+    private boolean background(Canvas cv, float W, float H, float aL, float aR, Hub hub, long now, boolean motion) {
         Hub.Deck d = hub.background;
         boolean on = hub.settings.shows("background") && d.cur != null;
         fill.setShader(new LinearGradient(0, 0, 0, H, 0xFF14291F, 0xFF030A07, Shader.TileMode.CLAMP));
@@ -172,42 +192,51 @@ final class Renderer {
         if (on) {
             long age = now - d.shownAt;
             float fade = Math.min(1, age / (float) BG_FADE);
-            if (d.prev != null && fade < 1) photo(cv, d.prev, d.prevBright, W, H, 1, 1);
+            float cx = (aL + aR) / 2;
+            if (d.prev != null && fade < 1) photo(cv, d.prev, d.prevBright, W, H, cx, 1, 1);
             float settle = motion ? Math.min(1, age / (float) SETTLE) : 1;
-            photo(cv, d.cur, d.curBright, W, H, fade, settle);
+            photo(cv, d.cur, d.curBright, W, H, cx, fade, settle);
             if (fade >= 1) d.prev = null;
             moving = fade < 1 || settle < 1;
         }
-        // .veil: the vertical shade and a soft one at 22% 34%
+        // .veil: the vertical shade (lighter at the bottom than Bayti TV's: the corners' words sit on the photo) and a soft one at 22% 34%
         fill.setShader(new LinearGradient(0, 0, 0, H,
-                new int[]{0x9E030A07, 0x4D030A07, 0x1F030A07, 0x6B030A07, 0xE0020604},
+                new int[]{0x9E030A07, 0x4D030A07, 0x1F030A07, 0x40030A07, 0x8C020604},
                 new float[]{0, .22f, .46f, .74f, 1}, Shader.TileMode.CLAMP));
         cv.drawRect(0, 0, W, H, fill);
         cv.save();
-        cv.translate(.22f * W, .34f * H);
-        cv.scale(1.2f * W, .85f * H);
+        float aW = aR - aL;
+        cv.translate(aL + .22f * aW, .34f * H);
+        cv.scale(1.2f * aW, .85f * H);
         fill.setShader(new RadialGradient(0, 0, 1, new int[]{0x6B030E09, 0x00030E09}, new float[]{0, .58f}, Shader.TileMode.CLAMP));
         cv.drawRect(-1, -1, 1, 1, fill);
         cv.restore();
         // .grain
         cv.drawRect(0, 0, W, H, grain);
-        // .top-veil at the weather's corner and .bottom-veil under the cards
+        // .top-veil at the weather's corner and .bottom-veil under the corners' words
         cv.save();
-        cv.scale(.56f * W, .34f * H);
+        cv.translate(aL, 0);
+        cv.scale(.56f * aW, .34f * H);
         fill.setShader(new RadialGradient(0, 0, 1.2f, new int[]{0xD1020906, 0x6B020906, 0x00020906}, new float[]{0, .45f, .76f}, Shader.TileMode.CLAMP));
         cv.drawRect(0, 0, 1, 1, fill);
         cv.restore();
-        fill.setShader(new LinearGradient(0, H * .7f, 0, H, new int[]{0x00020704, 0x8C020704, 0xDB020604}, new float[]{0, .42f, 1}, Shader.TileMode.CLAMP));
-        cv.drawRect(0, H * .7f, W, H, fill);
+        fill.setShader(new LinearGradient(0, H * .72f, 0, H, new int[]{0x00020704, 0x40020704, 0x8C020604}, new float[]{0, .45f, 1}, Shader.TileMode.CLAMP));
+        cv.drawRect(0, H * .72f, W, H, fill);
         fill.setShader(null);
         return moving;
     }
 
-    /** cover, centred at 26% from the top; settle: 0 = the start of the drift (scale 1.055, a little up and left), 1 = still at 1.03 */
-    private void photo(Canvas cv, Bitmap bm, float bright, float W, float H, float alpha, float settle) {
+    /**
+     * cover, at 26% from the top, the photo's middle at x = cx where it can be; settle: 0 = the start of the drift (scale 1.055, a
+     * little up and left), 1 = still at 1.03
+     */
+    private void photo(Canvas cv, Bitmap bm, float bright, float W, float H, float cx, float alpha, float settle) {
         float e = 1 - (float) Math.pow(1 - settle, 3);   // ease-out
         float scale = 1.055f - .025f * e, tx = -.0055f * (1 - e) * W, ty = -.004f * (1 - e) * H;
         cover(bm, W, H, .26f);
+        float bs = W / src.width(), dx = Math.round(bm.getWidth() / 2f - cx / bs) - src.left;
+        dx = Math.max(-src.left, Math.min(bm.getWidth() - src.right, dx));
+        src.offset(Math.round(dx), 0);
         cv.save();
         cv.translate(W / 2 + tx, H / 2 + ty);
         cv.scale(scale, scale);
@@ -291,45 +320,40 @@ final class Renderer {
         fill.setColor(Color.BLACK);
     }
 
-    // ---------------------------------------------------------------- the cards
+    // ---------------------------------------------------------------- the bottom corners
 
-    private void card(Canvas cv, float l, float t, float rr, float b) {
-        r.set(l, t, rr, b);
-        fill.setColor(0x8C030A07);
-        cv.drawRoundRect(r, 14, 14, fill);
-        fill.setStyle(Paint.Style.STROKE);
-        fill.setStrokeWidth(1);
-        fill.setColor(0x33DCB86F);
-        cv.drawRoundRect(r, 14, 14, fill);
-        fill.setStyle(Paint.Style.FILL);
-    }
-
-    private void prayerCard(Canvas cv, float l, float t, float rr, float b, Settings s, long now, boolean latin) {
-        Prayers.Next n = Prayers.next(s, now);
-        if (n == null) return;
-        card(cv, l, t, rr, b);
-        float x = rr - 16, w = rr - l - 32;
-        line(cv, "الصلاة القادمة", x, t + 22, regular, 14, DIM, w, Paint.Align.RIGHT);
+    /** the next prayer in the bottom right corner: a small title, the prayer and its time, how long until it */
+    private void prayer(Canvas cv, float x, float b, float maxW, Prayers.Next n, Settings s, long now, boolean latin) {
+        shadow(10);
+        line(cv, "الصلاة القادمة", x, b - 52, regular, 14, DIM, maxW, Paint.Align.RIGHT);
         text.setTypeface(bold);
-        text.setTextSize(25);
-        float nameW = text.measureText(n.name);
-        line(cv, n.name, x, t + 50, bold, 25, GOLD, w, Paint.Align.RIGHT);
-        line(cv, Texts.clock12(n.at, s.tz(), s.clock24(), latin), x - nameW - 12, t + 50, bold, 25, SAND, w - nameW - 12, Paint.Align.RIGHT);
-        line(cv, Texts.remaining(n.at - now, latin), x, t + 71, regular, 14, GOLD_HI, w, Paint.Align.RIGHT);
+        text.setTextSize(26);
+        float nameW = Math.min(maxW, text.measureText(n.name));
+        line(cv, n.name, x, b - 24, bold, 26, GOLD, maxW, Paint.Align.RIGHT);
+        line(cv, Texts.clock12(n.at, s.tz(), s.clock24(), latin), x - nameW - 12, b - 24, bold, 26, SAND, maxW - nameW - 12, Paint.Align.RIGHT);
+        line(cv, Texts.remaining(n.at - now, latin), x, b - 2, regular, 15, GOLD_HI, maxW, Paint.Align.RIGHT);
+        text.clearShadowLayer();
     }
 
-    private void hilalCard(Canvas cv, float l, float t, float rr, float b, Hub hub, long now, boolean latin) {
+    /** Al-Hilal's next match in the bottom left corner: a small title, the badges and the sides (home on the right), when and where */
+    private void hilal(Canvas cv, float x, float b, float maxW, Hub hub, long now, boolean latin) {
         Hilal m = hub.match;
-        card(cv, l, t, rr, b);
-        float bs = 34, cy = t + 30;
-        // the home side on the right, as Arabic reads
-        if (hub.homeBadge != null) badge(cv, hub.homeBadge, rr - 14 - bs, cy - bs / 2, bs);
-        if (hub.awayBadge != null) badge(cv, hub.awayBadge, l + 14, cy - bs / 2, bs);
-        float mid = (l + rr) / 2, w = rr - l - 2 * (bs + 22);
-        line(cv, m.home + " × " + m.away, mid, cy + 8, bold, 21, SAND, w, Paint.Align.CENTER);
+        float bs = 28, gap = 8;
+        shadow(10);
+        line(cv, "المباراة القادمة", x, b - 52, regular, 14, DIM, maxW, Paint.Align.LEFT);
+        String sides = m.home + " × " + m.away;
+        text.setTypeface(bold);
+        text.setTextSize(22);
+        float room = maxW - 2 * (bs + gap);
+        float tw = Math.min(room, text.measureText(sides));
+        float tx = x + (hub.awayBadge != null ? bs + gap : 0), cy = b - 24 - 8;
+        line(cv, sides, tx, b - 24, bold, 22, SAND, room, Paint.Align.LEFT);
         String tz = hub.settings.tz();
         String when = Texts.dayWord(m.at, now, tz) + " " + Texts.clock12(m.at, tz, hub.settings.clock24(), latin);
-        line(cv, m.league + " · " + when, mid, t + 68, regular, 14, GOLD_HI, rr - l - 28, Paint.Align.CENTER);
+        line(cv, m.league + " · " + when, x, b - 2, regular, 15, GOLD_HI, maxW, Paint.Align.LEFT);
+        text.clearShadowLayer();
+        if (hub.awayBadge != null) badge(cv, hub.awayBadge, x, cy - bs / 2, bs);
+        if (hub.homeBadge != null) badge(cv, hub.homeBadge, tx + tw + gap, cy - bs / 2, bs);
     }
 
     private void badge(Canvas cv, Bitmap bm, float x, float y, float size) {

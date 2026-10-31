@@ -2,10 +2,11 @@ name: Android
 
 # Builds the signed release APK and publishes it to the apk-latest release
 # (fixed link: .../releases/download/apk-latest/bayti-auto.apk). Started by hand, or by a push to master.
+# A push to a claude/ branch only builds (a check before master); it publishes nothing.
 on:
   workflow_dispatch:
   push:
-    branches: [master]
+    branches: [master, 'claude/**']
 
 permissions:
   contents: write
@@ -46,6 +47,7 @@ jobs:
           path: bayti-auto.apk
 
       - name: Publish to the apk-latest release
+        if: github.ref == 'refs/heads/master'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: apk-latest

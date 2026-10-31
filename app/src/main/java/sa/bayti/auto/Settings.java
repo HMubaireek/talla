@@ -95,6 +95,10 @@ final class Settings {
     void setHideAsr(boolean v) { sp.edit().putBoolean("hide_asr", v).apply(); }
     void setHideIsha(boolean v) { sp.edit().putBoolean("hide_isha", v).apply(); }
 
+    /** the next prayer shows only in the hour before it (on unless switched off); off: always */
+    boolean prayerSoonOnly() { return sp.getBoolean("prayer_soon", true); }
+    void setPrayerSoonOnly(boolean v) { sp.edit().putBoolean("prayer_soon", v).apply(); }
+
     String city() { return sp.getString("city", HOME_CITY); }
     double lat() { return number(sp.getString("lat", null), HOME_LAT); }
     double lon() { return number(sp.getString("lon", null), HOME_LON); }
