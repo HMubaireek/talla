@@ -2,6 +2,7 @@ package sa.bayti.auto;
 
 import android.Manifest;
 import android.app.Activity;
+import android.app.DownloadManager;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.res.ColorStateList;
@@ -141,18 +142,7 @@ public final class SettingsActivity extends Activity {
 
         section("صوري");
         folderLabel = note(folderText());
-        Button pick = new Button(this);
-        pick.setText("اختر مجلد الصور في الهاتف");
-        pick.setTypeface(bold);
-        pick.setTextColor(BG);
-        pick.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
-        pick.setAllCaps(false);
-        pick.setBackground(rounded(Renderer.GOLD, 10));
-        pick.setOnClickListener(v -> startActivityForResult(new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE), PICK_FOLDER));
-        LinearLayout.LayoutParams pickAt = new LinearLayout.LayoutParams(-1, dp(48));
-        pickAt.topMargin = dp(10);
-        pickAt.bottomMargin = dp(6);
-        list.addView(pick, pickAt);
+        button("اختر مجلد الصور في الهاتف", v -> startActivityForResult(new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE), PICK_FOLDER));
 
         section("تخفيف الإضاءة");
         note("يُعتم الصورة كلها، والكتابة بقدر أقل لتبقى واضحة.");
@@ -171,6 +161,30 @@ public final class SettingsActivity extends Activity {
 
         if (saved == null && s.weatherHere() && checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED)
             requestPermissions(new String[]{Manifest.permission.ACCESS_COARSE_LOCATION}, ASK_LOCATION);
+
+        section("التحديث من الهاتف");
+        note("بلا حاسوب: يبني GitHub كل إصدار، فيُنزَّل هنا ويثبّته UnknownAuto. "
+                + "١) نزّل التحديث. ٢) افتح Shizuku وشغّله بـ«التشغيل عبر تصحيح الأخطاء اللاسلكي» (والواي فاي مفتوح). "
+                + "٣) افتح UnknownAuto: ‏Load APK ← Download ← الملف الجديد ← Install، ثم Update.");
+        final long have = Update.installed(this);
+        final String haveName = "الإصدار المثبت " + Texts.digits("1." + have, false);
+        final TextView state = note(haveName + " · يُبحث عن الأحدث…");
+        final long[] newest = {-1};
+        new Thread(() -> {
+            long n = Update.latest();
+            runOnUiThread(() -> {
+                newest[0] = n;
+                state.setText(haveName + " · " + (n < 0 ? "تعذّرت معرفة الأحدث"
+                        : n > have ? "الأحدث " + Texts.digits("1." + n, false) + ": يوجد تحديث" : "هذا هو الأحدث"));
+            });
+        }, "bayti-update").start();
+        button("نزّل التحديث", v -> {
+            long id = Update.download(this, newest[0]);
+            state.setText("يُنزَّل إلى مجلد Download…");
+            watch(state, id);
+        });
+        button("افتح Shizuku", v -> { if (!Update.open(this, Update.SHIZUKU, "shizuku")) state.setText("Shizuku غير مثبت"); });
+        button("افتح UnknownAuto", v -> { if (!Update.open(this, null, "unknownauto")) state.setText("UnknownAuto غير مثبت"); });
 
         section("في السيارة");
         note("يظهر التطبيق في قائمة تطبيقات Android Auto باسم «بيتي في السيارة». زرّه الوحيد يبدّل صورة الخلفية، "
@@ -211,6 +225,33 @@ public final class SettingsActivity extends Activity {
             getSharedPreferences("weather", MODE_PRIVATE).edit().putLong("tried", 0).apply();
             Hub.get(this).invalidate();
         }
+    }
+
+    /** shows a download's end in `state`, looking every second while this screen is open */
+    private void watch(TextView state, long id) {
+        state.postDelayed(() -> {
+            if (isDestroyed()) return;
+            int st = Update.status(this, id);
+            if (st == DownloadManager.STATUS_SUCCESSFUL) state.setText("نُزّل في Download. الآن: Shizuku ثم UnknownAuto.");
+            else if (st == DownloadManager.STATUS_FAILED || st == 0) state.setText("تعذّر التنزيل. تأكد من الاتصال وحاول ثانية.");
+            else watch(state, id);
+        }, 1000);
+    }
+
+    /** a gold button, the width of the card */
+    private void button(String label, View.OnClickListener click) {
+        Button b = new Button(this);
+        b.setText(label);
+        b.setTypeface(bold);
+        b.setTextColor(BG);
+        b.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
+        b.setAllCaps(false);
+        b.setBackground(rounded(Renderer.GOLD, 10));
+        b.setOnClickListener(click);
+        LinearLayout.LayoutParams at = new LinearLayout.LayoutParams(-1, dp(48));
+        at.topMargin = dp(10);
+        at.bottomMargin = dp(6);
+        list.addView(b, at);
     }
 
     private String folderText() {

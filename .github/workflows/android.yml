@@ -52,6 +52,10 @@ jobs:
         with:
           tag_name: apk-latest
           name: Bayti Auto (latest)
-          body: The newest signed build. Install it with UnknownAuto or KingInstaller (see the README), not by tapping the file.
+          # the app's «التحديث من الهاتف» reads the versionCode line
+          body: |
+            The newest signed build. Install it with UnknownAuto (see the README), not by tapping the file.
+
+            versionCode: ${{ github.run_number }}
           files: bayti-auto.apk
           make_latest: true
