@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Talla · طلّة: a window onto the road, a gold sun on its horizon -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
+    <path android:fillColor="#0E1A2B" android:pathData="M54,0a54,54 0,1 1,0 108a54,54 0,1 1,0 -108z" />
+    <group>
+        <clip-path android:pathData="M38,26 L70,26 Q80,26 80,36 L80,72 Q80,82 70,82 L38,82 Q28,82 28,72 L28,36 Q28,26 38,26 Z" />
+        <path android:fillColor="#1D3352" android:pathData="M28,26 L80,26 L80,61 L28,61 Z" />
+        <path android:fillColor="#E3B65E" android:pathData="M41,61 A13,13 0 0 1 67,61 Z" />
+        <path android:fillColor="#0A1422" android:pathData="M28,61 L80,61 L80,82 L28,82 Z" />
+        <path android:fillColor="#F3E9D6" android:pathData="M51.6,61 L56.4,61 L68,82 L40,82 Z" android:fillAlpha="0.9" />
+        <path android:fillColor="#0A1422" android:pathData="M53.4,64 L54.6,64 L55.2,68 L52.8,68 Z M52.6,71 L55.4,71 L56.2,77 L51.8,77 Z" />
+    </group>
+    <path android:strokeColor="#E3B65E" android:strokeWidth="4"
+        android:pathData="M38,26 L70,26 Q80,26 80,36 L80,72 Q80,82 70,82 L38,82 Q28,82 28,72 L28,36 Q28,26 38,26 Z" />
+</vector>

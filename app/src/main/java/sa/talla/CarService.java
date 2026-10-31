@@ -1,4 +1,4 @@
-package sa.bayti.auto;
+package sa.talla;
 
 import android.content.Intent;
 import android.content.res.Configuration;

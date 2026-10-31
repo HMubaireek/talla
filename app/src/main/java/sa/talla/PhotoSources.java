@@ -1,4 +1,4 @@
-package sa.bayti.auto;
+package sa.talla;
 
 import android.content.Context;
 
@@ -37,7 +37,7 @@ final class PhotoSources {
     };
     /** where a photo of a source may come from: nothing else from the outside is downloaded */
     static final String[] HOSTS = {"https://upload.wikimedia.org/", "https://thumb.wikimedia.org/", "https://www.bing.com/", SAUDI_BASE};
-    private static final String UA = "BaytiAuto/1.0 (https://github.com/HMubaireek/bayti-tv)";
+    private static final String UA = "Talla/2.0 (https://github.com/HMubaireek/talla)";
     private static final long DAY_MS = 24 * 3600 * 1000L;
     /** at most this many from one source: a category has hundreds */
     static final int PER_SOURCE = 60;

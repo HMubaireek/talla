@@ -1,4 +1,4 @@
-package sa.bayti.auto;
+package sa.talla;
 
 import android.app.DownloadManager;
 import android.content.Context;
@@ -23,8 +23,8 @@ import java.util.regex.Pattern;
  * debugging.
  */
 final class Update {
-    static final String APK = "https://github.com/HMubaireek/bayti-auto/releases/download/apk-latest/bayti-auto.apk";
-    private static final String RELEASE = "https://api.github.com/repos/HMubaireek/bayti-auto/releases/tags/apk-latest";
+    static final String APK = "https://github.com/HMubaireek/talla/releases/download/apk-latest/talla.apk";
+    private static final String RELEASE = "https://api.github.com/repos/HMubaireek/talla/releases/tags/apk-latest";
     static final String SHIZUKU = "moe.shizuku.privileged.api";
 
     private Update() { }
@@ -40,20 +40,39 @@ final class Update {
         }
     }
 
-    /** Blocking. The newest build's versionCode, from the release's notes («versionCode: N»); -1 when it can't be read. */
-    static long latest() {
+    /** this install's version name ("2.0") */
+    static String installedName(Context c) {
         try {
-            String body = new JSONObject(Net.text(RELEASE)).optString("body", "");
-            Matcher m = Pattern.compile("versionCode:\\s*(\\d+)").matcher(body);
-            return m.find() ? Long.parseLong(m.group(1)) : -1;
-        } catch (Exception e) {
-            return -1;
+            String n = c.getPackageManager().getPackageInfo(c.getPackageName(), 0).versionName;
+            return n == null ? "" : n;
+        } catch (PackageManager.NameNotFoundException e) {
+            return "";
         }
     }
 
-    /** saves the newest APK in Download as bayti-auto-1.<code>.apk (a new name each time: the phone won't overwrite); its id */
-    static long download(Context c, long code) {
-        String name = "bayti-auto-1." + (code > 0 ? code : "new") + ".apk";
+    /** the newest build, from the release's notes («versionCode: N» and «versionName: 2.x»); code -1 when it can't be read */
+    static final class Latest {
+        final long code;
+        final String name;
+        Latest(long code, String name) { this.code = code; this.name = name; }
+    }
+
+    /** Blocking. */
+    static Latest latest() {
+        try {
+            String body = new JSONObject(Net.text(RELEASE)).optString("body", "");
+            Matcher m = Pattern.compile("versionCode:\\s*(\\d+)").matcher(body);
+            Matcher n = Pattern.compile("versionName:\\s*([0-9][0-9.]*)").matcher(body);
+            return new Latest(m.find() ? Long.parseLong(m.group(1)) : -1, n.find() ? n.group(1) : "");
+        } catch (Exception e) {
+            return new Latest(-1, "");
+        }
+    }
+
+    /** saves the newest APK in Download as talla-<version>.apk (a new name each time: the phone won't overwrite); its id */
+    static long download(Context c, Latest latest) {
+        String v = !latest.name.isEmpty() ? latest.name : latest.code > 0 ? String.valueOf(latest.code) : String.valueOf(System.currentTimeMillis() / 1000);
+        String name = "talla-" + v + ".apk";
         DownloadManager.Request r = new DownloadManager.Request(Uri.parse(APK))
                 .setTitle(name)
                 .setMimeType("application/vnd.android.package-archive")

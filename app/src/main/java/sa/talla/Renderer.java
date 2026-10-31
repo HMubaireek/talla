@@ -1,4 +1,4 @@
-package sa.bayti.auto;
+package sa.talla;
 
 import android.content.Context;
 import android.graphics.Bitmap;
@@ -19,13 +19,13 @@ import android.text.TextUtils;
 import java.util.Random;
 
 /**
- * Draws Bayti's screen on a canvas: the photo with Bayti TV's look (its slow settle, its darkness, the veil, the grain and the shades at
+ * Draws Talla's screen on a canvas: the photo with Bayti TV's look (its slow settle, its darkness, the veil, the grain and the shades at
  * the corners), the dates and the clock on the right, the weather and the carousel on the left, the next prayer in the bottom right
- * corner and Al-Hilal's next match in the bottom left one, straight on the photo. Laid out on a screen 480 units high (Mazda's 800 x 480 is 1:1) and as wide as the car's.
+ * corner and the chosen team's next match in the bottom left one, straight on the photo. Laid out on a screen 480 units high (Mazda's 800 x 480 is 1:1) and as wide as the car's.
  * Only the hub's thread calls it.
  */
 final class Renderer {
-    static final int SAND = 0xFFF6EFE0, DIM = 0xFFC3B8A2, GOLD = 0xFFDCB86F, GOLD_HI = 0xFFFFE9B8, AMBER = 0xFFFFB45A;
+    static final int SAND = 0xFFF6EFE0, DIM = 0xFFC3B8A2, GOLD = 0xFFE3B65E, GOLD_HI = 0xFFFFE3A6, AMBER = 0xFFFFB45A;
     private static final long BG_FADE = 2000, CAR_FADE = 650, SETTLE = 60_000, PUSH = 9000;
 
     private final Typeface light, regular, medium, bold;
@@ -141,14 +141,14 @@ final class Renderer {
             text.clearShadowLayer();
         }
 
-        // ---- the bottom corners: the next prayer on the right, Al-Hilal's match on the left, on the photo itself
+        // ---- the bottom corners: the next prayer on the right, the team's match on the left, on the photo itself
         float cornerW = CW / 2 - 14;
         Prayers.Next next = s.shows("prayer") ? Prayers.next(s, now) : null;
         if (next != null && s.prayerSoonOnly() && next.at - now > 3600_000L) next = null;
         if (next != null) prayer(cv, R, B, cornerW, next, s, now, latin);
-        boolean hilal = s.shows("hilal") && hub.match != null;
-        if (hilal) hilal(cv, L, B, cornerW, hub, now, latin);
-        float bottomOfLeft = hilal ? B - 84 : B;
+        boolean match = s.shows("match") && hub.match != null;
+        if (match) match(cv, L, B, cornerW, hub, now, latin);
+        float bottomOfLeft = match ? B - 84 : B;
 
         // ---- left: the weather and the carousel, beside the right column
         float leftW = CW - Math.max(clockW, CW * .4f) - 28;
@@ -218,8 +218,8 @@ final class Renderer {
 
     /**
      * The media card's picture, size x size: the photo, still, with the clock large in the middle and the phrase under it (a small
-     * picture, so nothing else); and its lines: the time and the phrase, the next prayer (a weather warning first), the dates and the
-     * weather.
+     * picture, so nothing else); and its lines: the time and the phrase, the next prayer (a weather warning first, and on a match day
+     * the team's match unless the prayer is within the hour), the dates and the weather.
      */
     Lines card(Canvas cv, int size, Hub hub, long now) {
         Settings s = hub.settings;
@@ -250,10 +250,14 @@ final class Renderer {
         boolean fresh = wx != null && wx.fresh(now);
         String warn = fresh && s.shows("warnings") ? wx.warning(latin) : "";
         String subtitle = warn;
-        if (subtitle.isEmpty() && s.shows("prayer")) {
-            Prayers.Next n = Prayers.next(s, now);
-            if (n != null) subtitle = n.name + " " + Texts.clock12(n.at, tz, s.clock24(), latin) + " · " + Texts.remaining(n.at - now, latin);
-        }
+        Prayers.Next n = s.shows("prayer") ? Prayers.next(s, now) : null;
+        String prayer = n == null ? "" : n.name + " " + Texts.clock12(n.at, tz, s.clock24(), latin) + " · " + Texts.remaining(n.at - now, latin);
+        // the team's match on a day it plays (from 12 hours before), unless a prayer is less than an hour away
+        Match m = s.shows("match") ? hub.match : null;
+        boolean matchDay = m != null && m.at - now < 12 * 3600_000L && now < m.at + 2 * 3600_000L;
+        if (subtitle.isEmpty() && matchDay && (n == null || n.at - now > 3600_000L))
+            subtitle = m.home + " × " + m.away + " · " + Texts.dayWord(m.at, now, tz) + " " + Texts.clock12(m.at, tz, s.clock24(), latin);
+        if (subtitle.isEmpty()) subtitle = prayer;
         String more = Texts.hijri(now, tz, s.hijriAdjust(), latin);
         if (fresh && s.shows("weather")) {
             String sky = Texts.skyWord(wx.code, wx.dust);
@@ -342,7 +346,7 @@ final class Renderer {
         r.set(0, 0, W, H);
     }
 
-    // ---------------------------------------------------------------- the carousel: Bayti's cross-fade and slow push-in, and its dots
+    // ---------------------------------------------------------------- the carousel: Bayti TV's cross-fade and slow push-in, and its dots
 
     private boolean carousel(Canvas cv, float x, float top, float maxW, float bottom, Hub.Deck d, long now, boolean motion) {
         float h = Math.min(maxW * 9 / 16, bottom - top - 16);
@@ -418,9 +422,9 @@ final class Renderer {
         text.clearShadowLayer();
     }
 
-    /** Al-Hilal's next match in the bottom left corner: a small title, the badges and the sides (home on the right), when and where */
-    private void hilal(Canvas cv, float x, float b, float maxW, Hub hub, long now, boolean latin) {
-        Hilal m = hub.match;
+    /** the team's next match in the bottom left corner: a small title, the badges and the sides (home on the right), when and where */
+    private void match(Canvas cv, float x, float b, float maxW, Hub hub, long now, boolean latin) {
+        Match m = hub.match;
         float bs = 28, gap = 8;
         shadow(10);
         line(cv, "المباراة القادمة", x, b - 52, regular, 14, DIM, maxW, Paint.Align.LEFT);

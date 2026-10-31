@@ -4,5 +4,5 @@ pluginManagement {
 dependencyResolutionManagement {
     repositories { google(); mavenCentral() }
 }
-rootProject.name = 'bayti-auto'
+rootProject.name = 'talla'
 include ':app'

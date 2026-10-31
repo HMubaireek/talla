@@ -1,4 +1,4 @@
-package sa.bayti.auto;
+package sa.talla;
 
 import android.content.ComponentName;
 import android.content.Context;
@@ -17,7 +17,7 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * «بطاقة الوسائط»: Bayti as a media app too, off unless switched on in the settings (the service is disabled otherwise, so Android
+ * «بطاقة الوسائط»: Talla as a media app too, off unless switched on in the settings (the service is disabled otherwise, so Android
  * Auto doesn't list it). Android Auto's split view keeps the big panel for one navigation app (Google Maps) and shows the media
  * app's card beside it; this card's picture is the photo with the clock, its lines the time and the phrase, the next prayer (or a
  * weather warning), the dates and the weather. It plays no sound. «التالي» on the card moves to the next background.
@@ -46,7 +46,7 @@ public final class MediaService extends MediaBrowserService implements Hub.Targe
         super.onCreate();
         hub = Hub.get(this);
         renderer = new Renderer(this);
-        session = new MediaSession(this, "bayti");
+        session = new MediaSession(this, "talla");
         session.setCallback(new MediaSession.Callback() {
             @Override public void onPlay() { setPlaying(true); }
             @Override public void onPlayFromMediaId(String id, Bundle extras) { setPlaying(true); }
@@ -87,7 +87,7 @@ public final class MediaService extends MediaBrowserService implements Hub.Targe
     @Override
     public void onLoadChildren(String parent, Result<List<MediaBrowser.MediaItem>> result) {
         if (!"root".equals(parent)) { result.sendResult(Collections.<MediaBrowser.MediaItem>emptyList()); return; }
-        MediaDescription d = new MediaDescription.Builder().setMediaId("bayti").setTitle(getString(R.string.app_name)).build();
+        MediaDescription d = new MediaDescription.Builder().setMediaId("talla").setTitle(getString(R.string.app_name)).build();
         result.sendResult(Collections.singletonList(new MediaBrowser.MediaItem(d, MediaBrowser.MediaItem.FLAG_PLAYABLE)));
     }
 
@@ -108,7 +108,7 @@ public final class MediaService extends MediaBrowserService implements Hub.Targe
         Bitmap art = Bitmap.createBitmap(ART, ART, Bitmap.Config.ARGB_8888);
         Renderer.Lines lines = renderer.card(new Canvas(art), ART, hub, now);
         session.setMetadata(new MediaMetadata.Builder()
-                .putString(MediaMetadata.METADATA_KEY_MEDIA_ID, "bayti")
+                .putString(MediaMetadata.METADATA_KEY_MEDIA_ID, "talla")
                 .putString(MediaMetadata.METADATA_KEY_TITLE, lines.title)
                 .putString(MediaMetadata.METADATA_KEY_ARTIST, lines.subtitle)
                 .putString(MediaMetadata.METADATA_KEY_ALBUM, lines.more)

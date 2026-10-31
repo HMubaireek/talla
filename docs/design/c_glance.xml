@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Talla · طلّة: a glance, an almond-shaped eye whose iris is the sun setting on the horizon -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
+    <path android:fillColor="#0E1A2B" android:pathData="M54,0a54,54 0,1 1,0 108a54,54 0,1 1,0 -108z" />
+    <group>
+        <clip-path android:pathData="M18,56 Q54,18 90,56 Q54,94 18,56 Z" />
+        <path android:fillColor="#1D3352" android:pathData="M18,20 L90,20 L90,60 L18,60 Z" />
+        <path android:fillColor="#E3B65E" android:pathData="M40,60 A14,14 0 0 1 68,60 Z" />
+        <path android:fillColor="#F3E9D6" android:pathData="M18,60 L90,60 L90,63 L18,63 Z" />
+        <path android:fillColor="#0A1422" android:pathData="M18,63 L90,63 L90,94 L18,94 Z" />
+    </group>
+    <path android:strokeColor="#E3B65E" android:strokeWidth="4" android:strokeLineJoin="round"
+        android:pathData="M18,56 Q54,18 90,56 Q54,94 18,56 Z" />
+</vector>

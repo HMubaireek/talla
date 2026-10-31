@@ -1,7 +1,8 @@
-package sa.bayti.auto;
+package sa.talla;
 
 import android.Manifest;
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.app.DownloadManager;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -27,6 +28,7 @@ import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.FrameLayout;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.Spinner;
@@ -42,13 +44,15 @@ import java.util.List;
  */
 public final class SettingsActivity extends Activity {
     private static final int PICK_FOLDER = 1, ASK_LOCATION = 2;
-    private static final int BG = 0xFF0B1F16, CARD = 0xFF13291F, OFF = 0xFF7D8B83;
+    /** Talla's palette: night blue, gold and sand (docs/design/talla-icons.png) */
+    static final int BG = 0xFF0E1A2B, CARD = 0xFF16263D, LINE = 0xFF24384F, GOLD = 0xFFE3B65E, GOLD_HI = 0xFFFFE3A6,
+            SAND = 0xFFF3E9D6, MUTED = 0xFFB4BAC4, OFF = 0xFF6E7C91;
 
     private Settings s;
     /** root: the whole page; list: the card that the next rows go into (a section's card, or root before the first) */
     private LinearLayout root, list;
     private Typeface regular, bold;
-    private TextView folderLabel;
+    private TextView folderLabel, teamLabel;
 
     @Override
     protected void onCreate(Bundle saved) {
@@ -75,10 +79,22 @@ public final class SettingsActivity extends Activity {
         scroll.addView(root);
         setContentView(scroll);
 
-        TextView title = text(getString(R.string.app_name), 26, Renderer.GOLD, bold);
-        list.addView(title);
-        TextView sub = text("ما تراه هنا هو ما تعرضه شاشة السيارة. المس الصورة لتنتقل إلى صورة العرض التالية.", 14, Renderer.DIM, regular);
-        sub.setPadding(0, dp(4), 0, dp(12));
+        // the header: the icon, «طلّة» and a line under it
+        LinearLayout head = new LinearLayout(this);
+        head.setOrientation(LinearLayout.HORIZONTAL);
+        head.setGravity(Gravity.CENTER_VERTICAL);
+        ImageView icon = new ImageView(this);
+        icon.setImageResource(R.drawable.ic_talla);
+        head.addView(icon, new LinearLayout.LayoutParams(dp(56), dp(56)));
+        LinearLayout names = new LinearLayout(this);
+        names.setOrientation(LinearLayout.VERTICAL);
+        names.setPadding(dp(14), 0, dp(14), 0);
+        names.addView(text(getString(R.string.app_name), 30, GOLD, bold));
+        names.addView(text("Talla · طلّة على يومك من السيارة", 13, MUTED, regular));
+        head.addView(names);
+        list.addView(head);
+        TextView sub = text("ما تراه هنا هو ما تعرضه شاشة السيارة. المس الصورة لتنتقل إلى صورة العرض التالية.", 14, MUTED, regular);
+        sub.setPadding(0, dp(14), 0, dp(12));
         list.addView(sub);
         PreviewView preview = new PreviewView(this);
         GradientDrawable round = new GradientDrawable();
@@ -94,8 +110,20 @@ public final class SettingsActivity extends Activity {
         section("ما يظهر في السيارة");
         for (String[] item : Settings.ITEMS) toggle(item[1], s.shows(item[0]), on -> s.setShows(item[0], on));
 
+        section("فريقك");
+        note("مباراته القادمة تظهر في الزاوية اليسرى من الشاشة، وفي بطاقة الوسائط يوم المباراة. اختر الدوري ثم الفريق.");
+        teamLabel = text("", 18, SAND, bold);
+        teamLabel.setPadding(0, dp(8), 0, dp(2));
+        list.addView(teamLabel);
+        showTeam();
+        button("اختر الدوري والفريق", v -> pickLeague());
+        outline("الهلال (المعتاد)", v -> {
+            s.setTeam(Settings.DEFAULT_TEAM, Settings.DEFAULT_TEAM_NAME, Settings.DEFAULT_LEAGUE);
+            showTeam();
+        });
+
         section("العبارة");
-        note("عبارة لكل جزء من اليوم، كعبارات بيتي. اتركها فارغة لتظهر العبارة المعتادة.");
+        note("عبارة لكل جزء من اليوم. اتركها فارغة لتظهر العبارة المعتادة.");
         for (int k = 0; k < Settings.GREET_PARTS.length; k++) {
             final int part = k;
             note(Settings.GREET_PARTS[k][1]);
@@ -138,7 +166,7 @@ public final class SettingsActivity extends Activity {
         section("العرض المتحرك");
         sources(s.carouselSources(), s::setCarouselSources);
         choice("تتبدل كل", seconds(Settings.CAROUSEL_SECONDS), String.valueOf(s.carouselSeconds()), v -> s.setCarouselSeconds(Integer.parseInt(v)));
-        toggle("حركة الصور الهادئة (كما في بيتي)", s.motion(), s::setMotion);
+        toggle("حركة الصور الهادئة", s.motion(), s::setMotion);
 
         section("صوري");
         folderLabel = note(folderText());
@@ -151,10 +179,10 @@ public final class SettingsActivity extends Activity {
 
         section("بطاقة الوسائط");
         note("في الشاشة المقسومة يترك Android Auto المساحة الكبيرة لتطبيق خرائط واحد (مثل خرائط Google)، وبجانبها بطاقة تطبيق الوسائط. "
-                + "حين تُشغَّل هذه يظهر «بيتي في السيارة» أيضًا تطبيقَ وسائط: بطاقته صورة الخلفية مع الساعة، وسطورها الوقت والصلاة القادمة "
-                + "(أو تنبيه الطقس) والتاريخ والطقس، و«التالي» فيها يبدّل الخلفية. لا تشغّل صوتًا، لكنها تأخذ مكان بطاقة YouTube Music "
+                + "حين تُشغَّل هذه يظهر «طلّة» أيضًا تطبيقَ وسائط: بطاقته صورة الخلفية مع الساعة، وسطورها الوقت والصلاة القادمة "
+                + "(أو تنبيه الطقس، أو مباراة فريقك يوم المباراة) والتاريخ والطقس، و«التالي» فيها يبدّل الخلفية. لا تشغّل صوتًا، لكنها تأخذ مكان بطاقة YouTube Music "
                 + "ما دامت مختارة. بعد تغييرها افصل الهاتف عن السيارة وأعد وصله.");
-        toggle("بيتي بطاقةَ وسائط بجانب الخريطة", s.mediaCard(), on -> {
+        toggle("طلّة بطاقةَ وسائط بجانب الخريطة", s.mediaCard(), on -> {
             s.setMediaCard(on);
             MediaService.enable(this, on);
         });
@@ -167,27 +195,28 @@ public final class SettingsActivity extends Activity {
                 + "١) نزّل التحديث. ٢) افتح Shizuku وشغّله بـ«التشغيل عبر تصحيح الأخطاء اللاسلكي» (والواي فاي مفتوح). "
                 + "٣) افتح UnknownAuto: ‏Load APK ← Download ← الملف الجديد ← Install، ثم Update.");
         final long have = Update.installed(this);
-        final String haveName = "الإصدار المثبت " + Texts.digits("1." + have, false);
+        final String haveName = "الإصدار المثبت " + Texts.digits(Update.installedName(this), false);
         final TextView state = note(haveName + " · يُبحث عن الأحدث…");
-        final long[] newest = {-1};
+        final Update.Latest[] newest = {new Update.Latest(-1, "")};
         new Thread(() -> {
-            long n = Update.latest();
+            Update.Latest n = Update.latest();
             runOnUiThread(() -> {
                 newest[0] = n;
-                state.setText(haveName + " · " + (n < 0 ? "تعذّرت معرفة الأحدث"
-                        : n > have ? "الأحدث " + Texts.digits("1." + n, false) + ": يوجد تحديث" : "هذا هو الأحدث"));
+                state.setText(haveName + " · " + (n.code < 0 ? "تعذّرت معرفة الأحدث"
+                        : n.code > have ? "الأحدث " + Texts.digits(n.name.isEmpty() ? String.valueOf(n.code) : n.name, false) + ": يوجد تحديث"
+                        : "هذا هو الأحدث"));
             });
-        }, "bayti-update").start();
+        }, "talla-update").start();
         button("نزّل التحديث", v -> {
             long id = Update.download(this, newest[0]);
             state.setText("يُنزَّل إلى مجلد Download…");
             watch(state, id);
         });
-        button("افتح Shizuku", v -> { if (!Update.open(this, Update.SHIZUKU, "shizuku")) state.setText("Shizuku غير مثبت"); });
-        button("افتح UnknownAuto", v -> { if (!Update.open(this, null, "unknownauto")) state.setText("UnknownAuto غير مثبت"); });
+        outline("افتح Shizuku", v -> { if (!Update.open(this, Update.SHIZUKU, "shizuku")) state.setText("Shizuku غير مثبت"); });
+        outline("افتح UnknownAuto", v -> { if (!Update.open(this, null, "unknownauto")) state.setText("UnknownAuto غير مثبت"); });
 
         section("في السيارة");
-        note("يظهر التطبيق في قائمة تطبيقات Android Auto باسم «بيتي في السيارة». زرّه الوحيد يبدّل صورة الخلفية، "
+        note("يظهر التطبيق في قائمة تطبيقات Android Auto باسم «طلّة». زرّه الوحيد يبدّل صورة الخلفية، "
                 + "ويخفيه Android Auto بعد ثوانٍ.");
         note("الخط: Tajawal (رخصة OFL)");
         note("البيانات: Open-Meteo · TheSportsDB · ويكيميديا · Bing");
@@ -239,19 +268,86 @@ public final class SettingsActivity extends Activity {
     }
 
     /** a gold button, the width of the card */
-    private void button(String label, View.OnClickListener click) {
+    private void button(String label, View.OnClickListener click) { button(label, click, true); }
+
+    /** a quieter one: gold words in a gold outline */
+    private void outline(String label, View.OnClickListener click) { button(label, click, false); }
+
+    private void button(String label, View.OnClickListener click, boolean filled) {
         Button b = new Button(this);
         b.setText(label);
         b.setTypeface(bold);
-        b.setTextColor(BG);
+        b.setTextColor(filled ? BG : GOLD);
         b.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
         b.setAllCaps(false);
-        b.setBackground(rounded(Renderer.GOLD, 10));
+        b.setStateListAnimator(null);
+        GradientDrawable g = rounded(filled ? GOLD : 0x00000000, 24);
+        if (!filled) g.setStroke(dp(1.5f), GOLD);
+        GradientDrawable pressed = rounded(filled ? GOLD_HI : 0x22E3B65E, 24);
+        if (!filled) pressed.setStroke(dp(1.5f), GOLD_HI);
+        StateListDrawable look = new StateListDrawable();
+        look.addState(new int[]{android.R.attr.state_pressed}, pressed);
+        look.addState(new int[0], g);
+        b.setBackground(look);
         b.setOnClickListener(click);
         LinearLayout.LayoutParams at = new LinearLayout.LayoutParams(-1, dp(48));
         at.topMargin = dp(10);
         at.bottomMargin = dp(6);
         list.addView(b, at);
+    }
+
+    // ---------------------------------------------------------------- «فريقك»: a league, then a team in it
+
+    private void showTeam() {
+        String league = Teams.leagueArabic(this, s.teamLeague());
+        teamLabel.setText(s.teamName() + (league == null ? "" : "  ·  " + league));
+    }
+
+    private void pickLeague() {
+        final List<String[]> leagues = Teams.leagues(this);
+        if (leagues.isEmpty()) return;
+        String[] rows = new String[leagues.size()];
+        for (int i = 0; i < rows.length; i++) rows[i] = leagues.get(i)[1];
+        dialog("اختر الدوري", rows, i -> pickTeam(leagues.get(i)));
+    }
+
+    private void pickTeam(final String[] league) {
+        final List<Teams.Team> clubs = Teams.inLeague(this, league[0]);
+        String[] rows = new String[clubs.size()];
+        for (int i = 0; i < rows.length; i++) rows[i] = (clubs.get(i).id.equals(s.team()) ? "✓ " : "") + clubs.get(i).label();
+        dialog(league[1], rows, i -> {
+            Teams.Team t = clubs.get(i);
+            s.setTeam(t.id, t.name(), league[0]);
+            showTeam();
+        });
+    }
+
+    private interface OnPick { void picked(int i); }
+
+    /** a list to pick one row from, in the app's colours */
+    private void dialog(String title, String[] rows, OnPick done) {
+        ArrayAdapter<String> a = new ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, rows) {
+            @Override
+            public View getView(int pos, View v, ViewGroup parent) {
+                TextView t = (TextView) super.getView(pos, v, parent);
+                t.setTypeface(regular);
+                t.setTextColor(SAND);
+                t.setTextSize(TypedValue.COMPLEX_UNIT_SP, 17);
+                t.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
+                t.setTextDirection(View.TEXT_DIRECTION_RTL);
+                t.setPadding(dp(20), dp(12), dp(20), dp(12));
+                return t;
+            }
+        };
+        TextView head = text(title, 20, GOLD, bold);
+        head.setPadding(dp(20), dp(18), dp(20), dp(8));
+        AlertDialog d = new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_NoActionBar)
+                .setCustomTitle(head)
+                .setAdapter(a, (x, i) -> done.picked(i))
+                .create();
+        d.getWindow().setBackgroundDrawable(rounded(CARD, 16));
+        d.getWindow().getDecorView().setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
+        d.show();
     }
 
     private String folderText() {
@@ -265,14 +361,24 @@ public final class SettingsActivity extends Activity {
     private interface OnBool { void set(boolean v); }
     private interface OnText { void set(String v); }
 
-    /** a gold heading, then a card that holds the rows until the next section */
+    /** a gold heading after a short gold rule, then a card that holds the rows until the next section */
     private void section(String name) {
-        TextView t = text(name, 18, Renderer.GOLD, bold);
-        t.setPadding(dp(4), dp(24), dp(4), dp(8));
-        root.addView(t);
+        LinearLayout h = new LinearLayout(this);
+        h.setOrientation(LinearLayout.HORIZONTAL);
+        h.setGravity(Gravity.CENTER_VERTICAL);
+        h.setPadding(dp(4), dp(26), dp(4), dp(10));
+        View rule = new View(this);
+        rule.setBackground(rounded(GOLD, 2));
+        h.addView(rule, new LinearLayout.LayoutParams(dp(4), dp(20)));
+        TextView t = text(name, 18, GOLD, bold);
+        t.setPadding(dp(10), 0, dp(10), 0);
+        h.addView(t);
+        root.addView(h);
         list = new LinearLayout(this);
         list.setOrientation(LinearLayout.VERTICAL);
-        list.setBackground(rounded(CARD, 14));
+        GradientDrawable card = rounded(CARD, 16);
+        card.setStroke(dp(1), LINE);
+        list.setBackground(card);
         list.setPadding(dp(16), dp(6), dp(16), dp(8));
         root.addView(list, new LinearLayout.LayoutParams(-1, -2));
     }
@@ -286,7 +392,7 @@ public final class SettingsActivity extends Activity {
 
     /** on: a gold track with a dark knob; off: an empty, outlined track with a grey knob. Plain to tell apart at a glance. */
     private void switchLook(Switch sw) {
-        GradientDrawable trackOn = rounded(Renderer.GOLD, 14), trackOff = rounded(0x00000000, 14);
+        GradientDrawable trackOn = rounded(GOLD, 14), trackOff = rounded(0x00000000, 14);
         trackOn.setSize(dp(56), dp(28));
         trackOff.setSize(dp(56), dp(28));
         trackOff.setStroke(dp(2), OFF);
@@ -312,7 +418,7 @@ public final class SettingsActivity extends Activity {
     }
 
     private TextView note(String s) {
-        TextView t = text(s, 14, Renderer.DIM, regular);
+        TextView t = text(s, 14, MUTED, regular);
         t.setPadding(0, dp(6), 0, dp(2));
         list.addView(t);
         return t;
@@ -321,7 +427,7 @@ public final class SettingsActivity extends Activity {
     private void toggle(String label, boolean on, OnBool done) {
         Switch sw = new Switch(this);
         sw.setText(label);
-        sw.setTextColor(Renderer.SAND);
+        sw.setTextColor(SAND);
         sw.setTypeface(regular);
         sw.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
         switchLook(sw);
@@ -339,12 +445,12 @@ public final class SettingsActivity extends Activity {
         e.setInputType(type);
         e.setSingleLine(true);
         e.setTypeface(regular);
-        e.setTextColor(Renderer.SAND);
-        e.setHintTextColor(0x88C3B8A2);
+        e.setTextColor(SAND);
+        e.setHintTextColor(0x88B4BAC4);
         e.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
         e.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
         e.setTextDirection(View.TEXT_DIRECTION_FIRST_STRONG_RTL);
-        e.setBackgroundTintList(new ColorStateList(new int[][]{{android.R.attr.state_focused}, {}}, new int[]{Renderer.GOLD, OFF}));
+        e.setBackgroundTintList(new ColorStateList(new int[][]{{android.R.attr.state_focused}, {}}, new int[]{GOLD, OFF}));
         e.addTextChangedListener(new TextWatcher() {
             @Override public void beforeTextChanged(CharSequence c, int a, int b, int d) { }
             @Override public void onTextChanged(CharSequence c, int a, int b, int d) { }
@@ -375,8 +481,8 @@ public final class SettingsActivity extends Activity {
         a.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         sp.setAdapter(a);
         sp.setSelection(at, false);
-        GradientDrawable g = rounded(BG, 8);
-        g.setStroke(dp(1), OFF);
+        GradientDrawable g = rounded(BG, 10);
+        g.setStroke(dp(1), LINE);
         sp.setBackground(g);
         sp.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override public void onItemSelected(AdapterView<?> p, View v, int pos, long id) { done.set(options[pos][0]); }
@@ -385,7 +491,7 @@ public final class SettingsActivity extends Activity {
         // the custom background hides the spinner's own arrow, so one is drawn over its far end (it lets touches through)
         FrameLayout box = new FrameLayout(this);
         box.addView(sp, new FrameLayout.LayoutParams(-1, -1));
-        TextView arrow = text("▾", 18, Renderer.GOLD, regular);
+        TextView arrow = text("▾", 18, GOLD, regular);
         arrow.setPadding(dp(14), 0, dp(14), 0);
         box.addView(arrow, new FrameLayout.LayoutParams(-2, -2, Gravity.LEFT | Gravity.CENTER_VERTICAL));
         sp.setMinimumHeight(dp(48));
@@ -399,7 +505,7 @@ public final class SettingsActivity extends Activity {
         if (v instanceof TextView) {
             TextView t = (TextView) v;
             t.setTypeface(regular);
-            t.setTextColor(Renderer.SAND);
+            t.setTextColor(SAND);
             t.setBackgroundColor(BG);
             t.setPadding(dp(12), dp(10), dp(12), dp(10));
         }
@@ -414,9 +520,9 @@ public final class SettingsActivity extends Activity {
             CheckBox cb = new CheckBox(this);
             cb.setText(src[1]);
             cb.setTypeface(regular);
-            cb.setTextColor(Renderer.SAND);
+            cb.setTextColor(SAND);
             cb.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15);
-            cb.setButtonTintList(new ColorStateList(new int[][]{{android.R.attr.state_checked}, {}}, new int[]{Renderer.GOLD, OFF}));
+            cb.setButtonTintList(new ColorStateList(new int[][]{{android.R.attr.state_checked}, {}}, new int[]{GOLD, OFF}));
             cb.setMinHeight(dp(44));
             cb.setChecked(now.contains(src[0]));
             cb.setOnCheckedChangeListener((b, on) -> {

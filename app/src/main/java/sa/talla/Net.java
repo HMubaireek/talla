@@ -1,4 +1,4 @@
-package sa.bayti.auto;
+package sa.talla;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -10,7 +10,7 @@ import java.nio.charset.StandardCharsets;
 
 /** Plain HTTPS GETs, off the main thread. */
 final class Net {
-    static final String UA = "BaytiAuto/1.0 (https://github.com/HMubaireek/bayti-tv)";
+    static final String UA = "Talla/2.0 (https://github.com/HMubaireek/talla)";
 
     private Net() { }
 

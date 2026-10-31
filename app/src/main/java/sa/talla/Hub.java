@@ -1,4 +1,4 @@
-package sa.bayti.auto;
+package sa.talla;
 
 import android.content.Context;
 import android.content.SharedPreferences;
@@ -13,7 +13,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /**
- * What the car's screen shows and when it draws, for the whole app: one thread ("bayti-draw") owns the state and draws every target
+ * What the car's screen shows and when it draws, for the whole app: one thread ("talla-draw") owns the state and draws every target
  * (the car's surface, the phone's preview), so nothing is locked; the network and the photo decoding run on two worker threads and
  * hand their results back to it.
  *
@@ -55,10 +55,10 @@ final class Hub implements SharedPreferences.OnSharedPreferenceChangeListener {
     private final List<Target> targets = new ArrayList<>();
 
     Weather weather;
-    Hilal match;
+    Match match;
     Bitmap homeBadge, awayBadge;
     private String badgesOf = "";
-    private boolean weatherBusy, hilalBusy;
+    private boolean weatherBusy, matchBusy;
     final Deck background = new Deck(false), carousel = new Deck(true);
     /** the size the photos are decoded at: the largest target's */
     int width = 800, height = 480;
@@ -66,13 +66,13 @@ final class Hub implements SharedPreferences.OnSharedPreferenceChangeListener {
     private Hub(Context app) {
         this.app = app;
         settings = new Settings(app);
-        HandlerThread t = new HandlerThread("bayti-draw");
+        HandlerThread t = new HandlerThread("talla-draw");
         t.start();
         handler = new Handler(t.getLooper());
         Settings.prefs(app).registerOnSharedPreferenceChangeListener(this);
         handler.post(() -> {
             weather = Weather.kept(app);
-            match = Hilal.kept(app, System.currentTimeMillis());
+            match = Match.kept(app, settings.team(), System.currentTimeMillis());
         });
     }
 
@@ -124,17 +124,19 @@ final class Hub implements SharedPreferences.OnSharedPreferenceChangeListener {
                 handler.post(() -> { weatherBusy = false; if (w != null) weather = w; invalidate(); });
             });
         }
-        if (settings.shows("hilal") && !hilalBusy && Hilal.due(app, now)) {
-            hilalBusy = true;
+        final String team = settings.team();
+        if (match != null && Match.kept(app, team, now) == null) match = null;   // another team was picked, or it was played
+        if (settings.shows("match") && !matchBusy && Match.due(app, team, now)) {
+            matchBusy = true;
             io.execute(() -> {
-                Hilal.fetch(app);
-                Hilal m = Hilal.kept(app, System.currentTimeMillis());
-                handler.post(() -> { hilalBusy = false; match = m; invalidate(); });
+                Match.fetch(app, team);
+                Match m = Match.kept(app, team, System.currentTimeMillis());
+                handler.post(() -> { matchBusy = false; match = m; invalidate(); });
             });
         }
         if (match != null && now > match.at + 2 * 3600_000L) match = null;
         if (match != null && !badgesOf.equals(match.homeBadge + match.awayBadge)) {
-            final Hilal m = match;
+            final Match m = match;
             badgesOf = m.homeBadge + m.awayBadge;
             io.execute(() -> {
                 Bitmap h = m.homeBadge.isEmpty() ? null : Photos.bitmap(app, m.homeBadge, 96, 96);

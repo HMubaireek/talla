@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Talla · طلّة: a gold crescent over a sand horizon, a road running to it -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
+    <path android:fillColor="#0E1A2B" android:pathData="M54,0a54,54 0,1 1,0 108a54,54 0,1 1,0 -108z" />
+    <group>
+        <clip-path android:pathData="M54,0a54,54 0,1 1,0 108a54,54 0,1 1,0 -108z" />
+        <path android:fillColor="#E3B65E" android:pathData="M50.505,23.363 A17,17 0 1 0 70.026,45.672 A15,15 0 0 1 50.505,23.363 Z" />
+        <path android:fillColor="#C9A574" android:pathData="M0,68 Q30,60 54,64 Q80,68 108,61 L108,108 L0,108 Z" />
+        <path android:fillColor="#F3E9D6" android:pathData="M0,72 Q30,66 54,70 Q80,74 108,68 L108,108 L0,108 Z" />
+        <path android:fillColor="#1D3352" android:pathData="M52.5,70 L55.5,70 L72,108 L36,108 Z" />
+        <path android:fillColor="#E3B65E" android:pathData="M53.6,74 L54.4,74 L54.9,80 L53.1,80 Z M53,85 L55,85 L55.8,95 L52.2,95 Z" />
+    </group>
+</vector>

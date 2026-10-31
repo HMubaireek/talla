@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Talla · طلّة: a glance at the road by night. A gold crescent over a horizon of sand, the road running to it. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
+    <path android:fillColor="#0E1A2B" android:pathData="M54,0a54,54 0,1 1,0 108a54,54 0,1 1,0 -108z" />
+    <group>
+        <clip-path android:pathData="M54,0a54,54 0,1 1,0 108a54,54 0,1 1,0 -108z" />
+        <!-- the sky lightens toward the horizon -->
+        <path android:fillColor="#122239" android:pathData="M0,42 L108,42 L108,70 L0,70 Z" />
+        <path android:fillColor="#172B47" android:pathData="M0,56 L108,56 L108,70 L0,70 Z" />
+        <path android:fillColor="#E3B65E" android:pathData="M53.392,20.190 A18,18 0 1 0 72.979,43.975 A15.5,15.5 0 0 1 53.392,20.190 Z" />
+        <!-- the dunes: a lit sand edge, then the dark ground -->
+        <path android:fillColor="#C9A574" android:pathData="M0,69 Q28,62 54,66 Q82,70 108,63 L108,108 L0,108 Z" />
+        <path android:fillColor="#0A1422" android:pathData="M0,72 Q28,65.5 54,69 Q82,72.5 108,66.5 L108,108 L0,108 Z" />
+        <!-- the road -->
+        <path android:fillColor="#F3E9D6" android:pathData="M52.6,68.6 L55.4,68.6 L74,108 L34,108 Z" />
+        <path android:fillColor="#0A1422" android:pathData="M53.6,73 L54.4,73 L54.8,78 L53.2,78 Z M53,83 L55,83 L55.8,94 L52.2,94 Z" />
+    </group>
+</vector>

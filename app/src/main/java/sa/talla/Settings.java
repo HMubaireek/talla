@@ -1,4 +1,4 @@
-package sa.bayti.auto;
+package sa.talla;
 
 import android.content.Context;
 import android.content.SharedPreferences;
@@ -11,7 +11,7 @@ import java.util.List;
  * every change (Hub listens), so a switch flipped on the phone shows on the car at once.
  */
 final class Settings {
-    static final String FILE = "bayti_auto";
+    static final String FILE = "talla";
 
     /** the items of the car's screen: key, Arabic label; each one on unless switched off */
     static final String[][] ITEMS = {
@@ -22,7 +22,7 @@ final class Settings {
         {"weather", "الطقس"},
         {"warnings", "تنبيهات الطقس (غبار، رياح، مطر، ضباب، حر)"},
         {"prayer", "الصلاة القادمة"},
-        {"hilal", "مباراة الهلال القادمة"},
+        {"match", "مباراة فريقك القادمة"},
         {"carousel", "العرض المتحرك"},
         {"background", "صورة الخلفية"},
     };
@@ -66,14 +66,26 @@ final class Settings {
     static final double HOME_LAT = 26.5132, HOME_LON = 49.9988;
     static final String HOME_TZ = "Asia/Riyadh";
 
-    /** TheSportsDB's Al-Hilal */
-    static final String HILAL_ID = "136013";
+    /** «فريقك»: TheSportsDB's Al-Hilal until another team is picked */
+    static final String DEFAULT_TEAM = "136013", DEFAULT_TEAM_NAME = "الهلال", DEFAULT_LEAGUE = "Saudi-Arabian Pro League";
 
     private final SharedPreferences sp;
 
     Settings(Context c) { sp = prefs(c); }
 
-    static SharedPreferences prefs(Context c) { return c.getApplicationContext().getSharedPreferences(FILE, Context.MODE_PRIVATE); }
+    static SharedPreferences prefs(Context c) {
+        SharedPreferences sp = c.getApplicationContext().getSharedPreferences(FILE, Context.MODE_PRIVATE);
+        migrate(sp);
+        return sp;
+    }
+
+    /** 1.x's keys, renamed in 2.0: «show_hilal» became «show_match» (the team is now chosen) */
+    private static void migrate(SharedPreferences sp) {
+        if (!sp.contains("show_hilal")) return;
+        SharedPreferences.Editor e = sp.edit();
+        if (!sp.contains("show_match")) e.putBoolean("show_match", sp.getBoolean("show_hilal", true));
+        e.remove("show_hilal").apply();
+    }
 
     boolean shows(String item) { return sp.getBoolean("show_" + item, true); }
     void setShows(String item, boolean on) { sp.edit().putBoolean("show_" + item, on).apply(); }
@@ -139,6 +151,14 @@ final class Settings {
     float dim(boolean carNight) {
         String m = nightMode();
         return "off".equals(m) || ("auto".equals(m) && !carNight) ? 0 : nightDim() / 100f;
+    }
+
+    /** «فريقك»: TheSportsDB's id of the team whose next match shows, its Arabic name, and the league it was picked from */
+    String team() { return sp.getString("team_id", DEFAULT_TEAM); }
+    String teamName() { return sp.getString("team_name", DEFAULT_TEAM_NAME); }
+    String teamLeague() { return sp.getString("team_league", DEFAULT_LEAGUE); }
+    void setTeam(String id, String name, String league) {
+        sp.edit().putString("team_id", id).putString("team_name", name).putString("team_league", league).apply();
     }
 
     /** «بطاقة الوسائط» (MediaService), off unless switched on */

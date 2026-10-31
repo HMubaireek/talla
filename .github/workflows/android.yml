@@ -1,7 +1,9 @@
 name: Android
 
 # Builds the signed release APK and publishes it to the apk-latest release
-# (fixed link: .../releases/download/apk-latest/bayti-auto.apk). Started by hand, or by a push to master.
+# (fixed link: .../releases/download/apk-latest/talla.apk). The same file also goes up as bayti-auto.apk, the name 1.x's
+# «التحديث من الهاتف» downloads (GitHub redirects its old bayti-auto URLs here); drop that copy once 1.x is gone from the phone.
+# Started by hand, or by a push to master.
 # A push to a claude/ branch only builds (a check before master); it publishes nothing.
 on:
   workflow_dispatch:
@@ -39,23 +41,31 @@ jobs:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
         run: |
           ./gradlew --no-daemon assembleRelease
-          cp app/build/outputs/apk/release/app-release.apk bayti-auto.apk
+          cp app/build/outputs/apk/release/app-release.apk talla.apk
+          cp talla.apk bayti-auto.apk
+          # the version name for the release notes, worked out as app/build.gradle does
+          BASE=$(sed -n 's/^def VERSION_BASE = \([0-9]*\).*/\1/p' app/build.gradle)
+          N=$(( GITHUB_RUN_NUMBER - BASE )); if [ "$N" -lt 0 ]; then N=0; fi
+          echo "VERSION_NAME=2.$N" >> "$GITHUB_ENV"
 
       - uses: actions/upload-artifact@v4
         with:
-          name: bayti-auto
-          path: bayti-auto.apk
+          name: talla
+          path: talla.apk
 
       - name: Publish to the apk-latest release
         if: github.ref == 'refs/heads/master'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: apk-latest
-          name: Bayti Auto (latest)
-          # the app's «التحديث من الهاتف» reads the versionCode line
+          name: Talla · طلّة ${{ env.VERSION_NAME }}
+          # the app's «التحديث من الهاتف» reads the versionCode and versionName lines
           body: |
             The newest signed build. Install it with UnknownAuto (see the README), not by tapping the file.
 
             versionCode: ${{ github.run_number }}
-          files: bayti-auto.apk
+            versionName: ${{ env.VERSION_NAME }}
+          files: |
+            talla.apk
+            bayti-auto.apk
           make_latest: true
