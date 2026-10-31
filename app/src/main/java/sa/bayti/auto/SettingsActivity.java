@@ -4,8 +4,12 @@ import android.Manifest;
 import android.app.Activity;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.content.res.ColorStateList;
 import android.graphics.Typeface;
+import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
+import android.graphics.drawable.InsetDrawable;
+import android.graphics.drawable.StateListDrawable;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.DocumentsContract;
@@ -21,6 +25,7 @@ import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.EditText;
+import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.Spinner;
@@ -36,10 +41,11 @@ import java.util.List;
  */
 public final class SettingsActivity extends Activity {
     private static final int PICK_FOLDER = 1, ASK_LOCATION = 2;
-    private static final int BG = 0xFF0B1F16, CARD = 0xFF13291F;
+    private static final int BG = 0xFF0B1F16, CARD = 0xFF13291F, OFF = 0xFF7D8B83;
 
     private Settings s;
-    private LinearLayout list;
+    /** root: the whole page; list: the card that the next rows go into (a section's card, or root before the first) */
+    private LinearLayout root, list;
     private Typeface regular, bold;
     private TextView folderLabel;
 
@@ -61,10 +67,11 @@ public final class SettingsActivity extends Activity {
         ScrollView scroll = new ScrollView(this);
         scroll.setBackgroundColor(BG);
         scroll.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
-        list = new LinearLayout(this);
-        list.setOrientation(LinearLayout.VERTICAL);
-        list.setPadding(dp(16), dp(20), dp(16), dp(32));
-        scroll.addView(list);
+        root = new LinearLayout(this);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setPadding(dp(16), dp(20), dp(16), dp(32));
+        list = root;
+        scroll.addView(root);
         setContentView(scroll);
 
         TextView title = text(getString(R.string.app_name), 26, Renderer.GOLD, bold);
@@ -78,6 +85,8 @@ public final class SettingsActivity extends Activity {
         preview.setClipToOutline(true);
         preview.setBackground(round);
         list.addView(preview, new LinearLayout.LayoutParams(-1, -2));
+        section("المعاينة");
+        note("للمعاينة هنا فقط، لا تغيّر شيئًا في السيارة.");
         toggle("معاينة الشاشة المقسومة (الخريطة مع بطاقات أندرويد أوتو)", false, preview::setSplit);
         toggle("معاينة الليل (كما تخففها السيارة حين تضيء أنوارها)", false, preview::setNight);
 
@@ -130,6 +139,21 @@ public final class SettingsActivity extends Activity {
         choice("تتبدل كل", seconds(Settings.CAROUSEL_SECONDS), String.valueOf(s.carouselSeconds()), v -> s.setCarouselSeconds(Integer.parseInt(v)));
         toggle("حركة الصور الهادئة (كما في بيتي)", s.motion(), s::setMotion);
 
+        section("صوري");
+        folderLabel = note(folderText());
+        Button pick = new Button(this);
+        pick.setText("اختر مجلد الصور في الهاتف");
+        pick.setTypeface(bold);
+        pick.setTextColor(BG);
+        pick.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
+        pick.setAllCaps(false);
+        pick.setBackground(rounded(Renderer.GOLD, 10));
+        pick.setOnClickListener(v -> startActivityForResult(new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE), PICK_FOLDER));
+        LinearLayout.LayoutParams pickAt = new LinearLayout.LayoutParams(-1, dp(48));
+        pickAt.topMargin = dp(10);
+        pickAt.bottomMargin = dp(6);
+        list.addView(pick, pickAt);
+
         section("تخفيف الإضاءة");
         note("يُعتم الصورة كلها، والكتابة بقدر أقل لتبقى واضحة.");
         choice("متى", Settings.NIGHT_MODES, s.nightMode(), s::setNightMode);
@@ -144,14 +168,6 @@ public final class SettingsActivity extends Activity {
             s.setMediaCard(on);
             MediaService.enable(this, on);
         });
-
-        section("صوري");
-        folderLabel = note(folderText());
-        Button pick = new Button(this);
-        pick.setText("اختر مجلد الصور في الهاتف");
-        pick.setTypeface(bold);
-        pick.setOnClickListener(v -> startActivityForResult(new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE), PICK_FOLDER));
-        list.addView(pick, new LinearLayout.LayoutParams(-1, -2));
 
         if (saved == null && s.weatherHere() && checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED)
             requestPermissions(new String[]{Manifest.permission.ACCESS_COARSE_LOCATION}, ASK_LOCATION);
@@ -208,10 +224,50 @@ public final class SettingsActivity extends Activity {
     private interface OnBool { void set(boolean v); }
     private interface OnText { void set(String v); }
 
+    /** a gold heading, then a card that holds the rows until the next section */
     private void section(String name) {
         TextView t = text(name, 18, Renderer.GOLD, bold);
-        t.setPadding(0, dp(24), 0, dp(6));
-        list.addView(t);
+        t.setPadding(dp(4), dp(24), dp(4), dp(8));
+        root.addView(t);
+        list = new LinearLayout(this);
+        list.setOrientation(LinearLayout.VERTICAL);
+        list.setBackground(rounded(CARD, 14));
+        list.setPadding(dp(16), dp(6), dp(16), dp(8));
+        root.addView(list, new LinearLayout.LayoutParams(-1, -2));
+    }
+
+    private GradientDrawable rounded(int color, float radius) {
+        GradientDrawable g = new GradientDrawable();
+        g.setColor(color);
+        g.setCornerRadius(dp(radius));
+        return g;
+    }
+
+    /** on: a gold track with a dark knob; off: an empty, outlined track with a grey knob. Plain to tell apart at a glance. */
+    private void switchLook(Switch sw) {
+        GradientDrawable trackOn = rounded(Renderer.GOLD, 14), trackOff = rounded(0x00000000, 14);
+        trackOn.setSize(dp(56), dp(28));
+        trackOff.setSize(dp(56), dp(28));
+        trackOff.setStroke(dp(2), OFF);
+        StateListDrawable track = new StateListDrawable();
+        track.addState(new int[]{android.R.attr.state_checked}, trackOn);
+        track.addState(new int[0], trackOff);
+
+        StateListDrawable thumb = new StateListDrawable();
+        thumb.addState(new int[]{android.R.attr.state_checked}, knob(BG));
+        thumb.addState(new int[0], knob(OFF));
+        sw.setTrackDrawable(track);
+        sw.setThumbDrawable(thumb);
+        sw.setSwitchMinWidth(dp(56));
+        sw.setSwitchPadding(dp(16));
+    }
+
+    private Drawable knob(int color) {
+        GradientDrawable g = new GradientDrawable();
+        g.setShape(GradientDrawable.OVAL);
+        g.setColor(color);
+        g.setSize(dp(20), dp(20));
+        return new InsetDrawable(g, dp(4));
     }
 
     private TextView note(String s) {
@@ -227,7 +283,9 @@ public final class SettingsActivity extends Activity {
         sw.setTextColor(Renderer.SAND);
         sw.setTypeface(regular);
         sw.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
+        switchLook(sw);
         sw.setChecked(on);
+        sw.setMinHeight(dp(52));
         sw.setPadding(0, dp(8), 0, dp(8));
         sw.setOnCheckedChangeListener((b, v) -> done.set(v));
         list.addView(sw, new LinearLayout.LayoutParams(-1, -2));
@@ -245,6 +303,7 @@ public final class SettingsActivity extends Activity {
         e.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
         e.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
         e.setTextDirection(View.TEXT_DIRECTION_FIRST_STRONG_RTL);
+        e.setBackgroundTintList(new ColorStateList(new int[][]{{android.R.attr.state_focused}, {}}, new int[]{Renderer.GOLD, OFF}));
         e.addTextChangedListener(new TextWatcher() {
             @Override public void beforeTextChanged(CharSequence c, int a, int b, int d) { }
             @Override public void onTextChanged(CharSequence c, int a, int b, int d) { }
@@ -264,22 +323,35 @@ public final class SettingsActivity extends Activity {
         Spinner sp = new Spinner(this);
         ArrayAdapter<String> a = new ArrayAdapter<String>(this, android.R.layout.simple_spinner_item, names) {
             @Override
-            public View getView(int pos, View v, ViewGroup parent) { return style(super.getView(pos, v, parent)); }
+            public View getView(int pos, View v, ViewGroup parent) {
+                View shown = style(super.getView(pos, v, parent));
+                shown.setBackgroundColor(0x00000000);   // the box's own outline shows around the chosen item
+                return shown;
+            }
             @Override
             public View getDropDownView(int pos, View v, ViewGroup parent) { return style(super.getDropDownView(pos, v, parent)); }
         };
         a.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         sp.setAdapter(a);
         sp.setSelection(at, false);
-        GradientDrawable g = new GradientDrawable();
-        g.setColor(CARD);
-        g.setCornerRadius(dp(8));
+        GradientDrawable g = rounded(BG, 8);
+        g.setStroke(dp(1), OFF);
         sp.setBackground(g);
         sp.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override public void onItemSelected(AdapterView<?> p, View v, int pos, long id) { done.set(options[pos][0]); }
             @Override public void onNothingSelected(AdapterView<?> p) { }
         });
-        list.addView(sp, new LinearLayout.LayoutParams(-1, dp(48)));
+        // the custom background hides the spinner's own arrow, so one is drawn over its far end (it lets touches through)
+        FrameLayout box = new FrameLayout(this);
+        box.addView(sp, new FrameLayout.LayoutParams(-1, -1));
+        TextView arrow = text("▾", 18, Renderer.GOLD, regular);
+        arrow.setPadding(dp(14), 0, dp(14), 0);
+        box.addView(arrow, new FrameLayout.LayoutParams(-2, -2, Gravity.LEFT | Gravity.CENTER_VERTICAL));
+        sp.setMinimumHeight(dp(48));
+        LinearLayout.LayoutParams place = new LinearLayout.LayoutParams(-1, -2);
+        place.topMargin = dp(4);
+        place.bottomMargin = dp(6);
+        list.addView(box, place);
     }
 
     private View style(View v) {
@@ -287,7 +359,7 @@ public final class SettingsActivity extends Activity {
             TextView t = (TextView) v;
             t.setTypeface(regular);
             t.setTextColor(Renderer.SAND);
-            t.setBackgroundColor(CARD);
+            t.setBackgroundColor(BG);
             t.setPadding(dp(12), dp(10), dp(12), dp(10));
         }
         return v;
@@ -303,6 +375,8 @@ public final class SettingsActivity extends Activity {
             cb.setTypeface(regular);
             cb.setTextColor(Renderer.SAND);
             cb.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15);
+            cb.setButtonTintList(new ColorStateList(new int[][]{{android.R.attr.state_checked}, {}}, new int[]{Renderer.GOLD, OFF}));
+            cb.setMinHeight(dp(44));
             cb.setChecked(now.contains(src[0]));
             cb.setOnCheckedChangeListener((b, on) -> {
                 now.remove(src[0]);
