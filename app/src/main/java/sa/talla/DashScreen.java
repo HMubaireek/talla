@@ -78,30 +78,36 @@ final class DashScreen extends Screen implements SurfaceCallback, Hub.Target {
 
     private CarInfo info;
     /** every answer goes to the hub's thread, which owns CarData */
-    private final Executor onHub = r -> hub.handler.post(r);
+    private final Executor onHub = this::onHub;
 
-    private final OnCarDataAvailableListener<EnergyLevel> energy = e -> {
+    private final OnCarDataAvailableListener<EnergyLevel> energy = this::onEnergy;
+    private final OnCarDataAvailableListener<Speed> speed = this::onSpeed;
+    private final OnCarDataAvailableListener<Mileage> mileage = this::onMileage;
+
+    private void onHub(Runnable r) { hub.handler.post(r); }
+
+    private void onEnergy(EnergyLevel e) {
         CarValue<Float> f = e.getFuelPercent(), r = e.getRangeRemainingMeters();
         CarValue<Boolean> low = e.getEnergyIsLow();
         boolean was = hub.car.low(hub.settings.fuelLimitKm());
         hub.car.energy(f.getStatus(), f.getValue(), r.getStatus(), r.getValue(), low.getStatus(), low.getValue());
         if (was != hub.car.low(hub.settings.fuelLimitKm()) || hub.settings.fuelAlways()) hub.invalidate();
-    };
+    }
 
-    private final OnCarDataAvailableListener<Speed> speed = sp -> {
+    private void onSpeed(Speed sp) {
         CarValue<Float> v = sp.getDisplaySpeedMetersPerSecond();
         if (v.getStatus() != CarValue.STATUS_SUCCESS) v = sp.getRawSpeedMetersPerSecond();
         long now = System.currentTimeMillis();
         boolean was = hub.car.moving(now);
         hub.car.speed(v.getStatus(), v.getValue(), now);
         if (was != hub.car.moving(now)) hub.invalidate();   // calm on, or off again
-    };
+    }
 
     @SuppressWarnings("deprecation")
-    private final OnCarDataAvailableListener<Mileage> mileage = m -> {
+    private void onMileage(Mileage m) {
         CarValue<Float> v = m.getOdometerMeters();
         hub.car.mileage(v.getStatus(), v.getValue());
-    };
+    }
 
     private void listenToCar() {
         if (getCarContext().getCarAppApiLevel() < 3) {
