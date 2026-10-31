@@ -132,7 +132,8 @@ final class Weather {
     }
 
     /** the phone's newest known place from any provider, without asking for a new fix (no GPS woken); null without the permission */
-    private static Location lastKnown(Context c) {
+    /** the phone's last known location (no new fix), null without the permission */
+    static Location lastKnown(Context c) {
         if (c.checkSelfPermission(android.Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) return null;
         try {
             LocationManager lm = (LocationManager) c.getSystemService(Context.LOCATION_SERVICE);

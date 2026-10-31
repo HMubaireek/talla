@@ -26,6 +26,8 @@ import java.util.Random;
  */
 final class Renderer {
     static final int SAND = 0xFFF6EFE0, DIM = 0xFFC3B8A2, GOLD = 0xFFE3B65E, GOLD_HI = 0xFFFFE3A6, AMBER = 0xFFFFB45A;
+    /** the phone's preview only: shows the low-fuel warning with made-up numbers */
+    volatile boolean demoFuel;
     private static final long BG_FADE = 2000, CAR_FADE = 650, SETTLE = 60_000, PUSH = 9000;
 
     private final Typeface light, regular, medium, bold;
@@ -67,7 +69,9 @@ final class Renderer {
      */
     boolean draw(Canvas cv, int w, int h, Rect area, float dim, Hub hub, long now) {
         Settings s = hub.settings;
-        boolean latin = s.latinDigits(), motion = s.motion();
+        CarData car = demoFuel ? CarData.demo(hub.app) : hub.car;
+        // «تهدئة الشاشة أثناء السير»: no slow motion while the car moves
+        boolean latin = s.latinDigits(), motion = s.motion() && !(s.calmMoving() && car.moving(now));
         float k = h / 480f, W = w / k, H = 480;
         float aL = 0, aR = W;
         if (area != null && area.width() >= w * .4f && area.height() >= h * .6f) {
@@ -183,10 +187,48 @@ final class Renderer {
             text.clearShadowLayer();
             ly += 26 * z;
         }
+        // the fuel, from the car: an amber warning (and the nearest station) when low; otherwise, if asked, a quiet line
+        if (s.shows("fuel") && car.hasFuel()) {
+            boolean low = car.low(s.fuelLimitKm());
+            String amount = fuelWords(car, latin);
+            float lw = CW - rightW - 16;
+            if (low) {
+                ly += 4;
+                warningSign(cv, L, ly + 13 * z, 15 * z);
+                shadow(10);
+                line(cv, "الوقود منخفض" + (amount.isEmpty() ? "" : " · " + amount), L + 22 * z, ly + 18 * z, medium, 17 * z, AMBER, lw - 22 * z, Paint.Align.LEFT);
+                ly += 26 * z;
+                Stations st = demoFuel ? Stations.demo() : hub.station;
+                if (st != null && s.fuelStation()) {
+                    line(cv, "أقرب محطة: " + st.name + " · نحو " + km(st.km, latin), L + 22 * z, ly + 14 * z, regular, 15 * z, SAND, lw - 22 * z, Paint.Align.LEFT);
+                    ly += 22 * z;
+                }
+                text.clearShadowLayer();
+            } else if (s.fuelAlways() && !amount.isEmpty()) {
+                shadow(10);
+                line(cv, "الوقود " + amount, L, ly + 16 * z, regular, 15 * z, DIM, lw, Paint.Align.LEFT);
+                text.clearShadowLayer();
+                ly += 22 * z;
+            }
+        }
         if (s.shows("carousel")) moving |= carousel(cv, L, ly + 8, Math.min(CW * .44f - 8, leftW), bottomOfLeft, hub.carousel, now, motion);
         if (dim > 0) cv.drawColor(Color.argb(Math.round(255 * dim * .35f), 0, 0, 0));
         cv.restore();
         return moving;
+    }
+
+    /** «٤٥٪ · يكفي ٨٠ كم», whatever of it the car gives */
+    private static String fuelWords(CarData car, boolean latin) {
+        String pct = Float.isNaN(car.fuelPercent) ? "" : Texts.digits(Math.round(car.fuelPercent) + (latin ? "%" : "٪"), latin);
+        String range = Float.isNaN(car.rangeKm) ? "" : "يكفي " + km(car.rangeKm, latin);
+        return pct.isEmpty() ? range : range.isEmpty() ? pct : pct + " · " + range;
+    }
+
+    /** a distance: one decimal under 10 km («٢٫٣ كم»), whole above */
+    static String km(float km, boolean latin) {
+        String n = km < 10 ? String.valueOf(Math.round(km * 10) / 10f) : String.valueOf(Math.round(km));
+        if (n.endsWith(".0")) n = n.substring(0, n.length() - 2);
+        return Texts.digits(latin ? n : n.replace('.', '٫'), latin) + " كم";
     }
 
     /** an amber triangle with «!», size wide, its middle at (x + size / 2, cy) */
@@ -250,6 +292,10 @@ final class Renderer {
         boolean fresh = wx != null && wx.fresh(now);
         String warn = fresh && s.shows("warnings") ? wx.warning(latin) : "";
         String subtitle = warn;
+        if (subtitle.isEmpty() && s.shows("fuel") && hub.car.hasFuel() && hub.car.low(s.fuelLimitKm())) {
+            String amount = fuelWords(hub.car, latin);
+            subtitle = "الوقود منخفض" + (amount.isEmpty() ? "" : " · " + amount);
+        }
         Prayers.Next n = s.shows("prayer") ? Prayers.next(s, now) : null;
         String prayer = n == null ? "" : n.name + " " + Texts.clock12(n.at, tz, s.clock24(), latin) + " · " + Texts.remaining(n.at - now, latin);
         // the team's match on a day it plays (from 12 hours before), unless a prayer is less than an hour away

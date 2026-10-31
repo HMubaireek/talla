@@ -56,6 +56,10 @@ final class Hub implements SharedPreferences.OnSharedPreferenceChangeListener {
 
     Weather weather;
     Match match;
+    /** what the car says (DashScreen fills it), and the nearest station while the fuel is low */
+    final CarData car;
+    Stations station;
+    private boolean stationBusy;
     Bitmap homeBadge, awayBadge;
     private String badgesOf = "";
     private boolean weatherBusy, matchBusy;
@@ -66,6 +70,7 @@ final class Hub implements SharedPreferences.OnSharedPreferenceChangeListener {
     private Hub(Context app) {
         this.app = app;
         settings = new Settings(app);
+        car = new CarData(app);
         HandlerThread t = new HandlerThread("talla-draw");
         t.start();
         handler = new Handler(t.getLooper());
@@ -124,6 +129,18 @@ final class Hub implements SharedPreferences.OnSharedPreferenceChangeListener {
                 handler.post(() -> { weatherBusy = false; if (w != null) weather = w; invalidate(); });
             });
         }
+        boolean low = settings.shows("fuel") && car.low(settings.fuelLimitKm());
+        if (!low || !settings.fuelStation()) station = null;
+        else if (!stationBusy) {
+            final android.location.Location here = Weather.lastKnown(app);
+            if (here != null && (station == null || station.stale(here, now))) {
+                stationBusy = true;
+                io.execute(() -> {
+                    Stations st = Stations.nearest(here);
+                    handler.post(() -> { stationBusy = false; if (st != null) station = st; invalidate(); });
+                });
+            }
+        }
         final String team = settings.team();
         if (match != null && Match.kept(app, team, now) == null) match = null;   // another team was picked, or it was played
         if (settings.shows("match") && !matchBusy && Match.due(app, team, now)) {
@@ -168,6 +185,8 @@ final class Hub implements SharedPreferences.OnSharedPreferenceChangeListener {
             });
         }
         if (d.loading || d.items.isEmpty() || now < d.nextAt) return;
+        // «تهدئة الشاشة أثناء السير»: the photo stays until the car stops (the minute's frame looks again)
+        if (d.cur != null && settings.calmMoving() && car.moving(now)) return;
         d.loading = true;
         d.idx = (d.idx + 1) % d.items.size();
         final Photos.Item item = d.items.get(d.idx);

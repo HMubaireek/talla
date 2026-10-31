@@ -11,6 +11,7 @@ A glance at your day from the car. Talla (until 1.x "Bayti Auto · بيتي في
 - the next prayer (Jafari by default, for Al-Mallaha, Al-Qatif)
 - your team's next match (Al-Hilal unless you pick another league and team)
 - a photo carousel
+- the car's own fuel and range, where the car sends them: a warning when low, with the nearest petrol station
 - a background photo with Bayti TV's veil, grain and slow settle
 
 Every item can be switched on or off in the app's settings on the phone. The settings screen also shows a live preview of the car's screen.
@@ -75,6 +76,8 @@ Google Play would not accept a non-navigation app in that category. That's fine 
 | Prayer times | computed on the phone (PrayerCalc); matches Aladhan to the minute | no network needed |
 | Hijri date | Android's Umm al-Qura calendar, with an adjustment of ±2 days | no network needed |
 | Your team's next match | [TheSportsDB](https://www.thesportsdb.com); leagues, clubs and Arabic names bundled from Bayti TV's lists (`tools/teams.py`) | every 3 hours, and again after a match |
+| Fuel, range, speed | the car itself, through Android Auto (if the car sends them) | live while Talla is on the screen |
+| Nearest petrol station | [OpenStreetMap](https://www.openstreetmap.org) (Overpass API) | only while the fuel is low |
 | Photos | Bayti TV's Saudi set, Wikimedia Commons featured pictures, Bing's photo of the day, your own folder | lists daily; photos cached on the phone (80 kept) |
 
 ## Build

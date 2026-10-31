@@ -52,7 +52,13 @@ public final class SettingsActivity extends Activity {
     /** root: the whole page; list: the card that the next rows go into (a section's card, or root before the first) */
     private LinearLayout root, list;
     private Typeface regular, bold;
-    private TextView folderLabel, teamLabel;
+    private TextView folderLabel, teamLabel, carState;
+    /** the car's data through Android Auto (Google Play services' permissions; CarData) */
+    private static final String[] CAR_PERMISSIONS = {
+        "com.google.android.gms.permission.CAR_FUEL", "com.google.android.gms.permission.CAR_SPEED",
+        "com.google.android.gms.permission.CAR_MILEAGE",
+    };
+    private static final int ASK_CAR = 3;
 
     @Override
     protected void onCreate(Bundle saved) {
@@ -106,6 +112,7 @@ public final class SettingsActivity extends Activity {
         note("للمعاينة هنا فقط، لا تغيّر شيئًا في السيارة.");
         toggle("معاينة الشاشة المقسومة (الخريطة مع بطاقات أندرويد أوتو)", false, preview::setSplit);
         toggle("معاينة الليل (كما تخففها السيارة حين تضيء أنوارها)", false, preview::setNight);
+        toggle("معاينة الوقود المنخفض (أرقام للتجربة)", false, preview::setLowFuel);
 
         section("ما يظهر في السيارة");
         for (String[] item : Settings.ITEMS) toggle(item[1], s.shows(item[0]), on -> s.setShows(item[0], on));
@@ -121,6 +128,19 @@ public final class SettingsActivity extends Activity {
             s.setTeam(Settings.DEFAULT_TEAM, Settings.DEFAULT_TEAM_NAME, Settings.DEFAULT_LEAGUE);
             showTeam();
         });
+
+        section("بيانات السيارة");
+        note("تقرأ طلّة من السيارة نفسها عبر Android Auto ما ترسله: الوقود والمدى المتبقي والسرعة. "
+                + "لا يصل شيء إلا والتطبيق على شاشة السيارة، ولا تُرسل كل السيارات كل شيء.");
+        toggle("أقرب محطة وقود مع التنبيه (من خرائط OpenStreetMap)", s.fuelStation(), s::setFuelStation);
+        String[][] limits = Settings.FUEL_LIMITS;
+        choice("نبّه حين يقل المدى المتبقي عن", limits, String.valueOf(s.fuelLimitKm()), v -> s.setFuelLimitKm(Integer.parseInt(v)));
+        toggle("الوقود والمدى دائمًا تحت الطقس", s.fuelAlways(), s::setFuelAlways);
+        toggle("تهدئة الشاشة أثناء السير (تتوقف حركة الصور وتبديلها حتى تقف)", s.calmMoving(), s::setCalmMoving);
+        carState = note("");
+        showCarState();
+        outline("اسمح بقراءة الوقود والسرعة والعداد", v -> requestPermissions(CAR_PERMISSIONS, ASK_CAR));
+        outline("حدّث ما أرسلته السيارة", v -> showCarState());
 
         section("العبارة");
         note("عبارة لكل جزء من اليوم. اتركها فارغة لتظهر العبارة المعتادة.");
@@ -222,6 +242,12 @@ public final class SettingsActivity extends Activity {
         note("البيانات: Open-Meteo · TheSportsDB · ويكيميديا · Bing");
     }
 
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (carState != null) showCarState();   // after a drive, what the car sent
+    }
+
     private void savePlace(String[] p) {
         try {
             double lat = Double.parseDouble(p[1].trim()), lon = Double.parseDouble(p[2].trim());
@@ -250,6 +276,7 @@ public final class SettingsActivity extends Activity {
     @Override
     public void onRequestPermissionsResult(int request, String[] permissions, int[] results) {
         // the weather of where the phone is, now that it may be known: asked again at once
+        if (request == ASK_CAR) { showCarState(); return; }
         if (request == ASK_LOCATION && results.length > 0 && results[0] == PackageManager.PERMISSION_GRANTED) {
             getSharedPreferences("weather", MODE_PRIVATE).edit().putLong("tried", 0).apply();
             Hub.get(this).invalidate();
@@ -294,6 +321,24 @@ public final class SettingsActivity extends Activity {
         at.topMargin = dp(10);
         at.bottomMargin = dp(6);
         list.addView(b, at);
+    }
+
+    // ---------------------------------------------------------------- «بيانات السيارة»: what the car sent last
+
+    private void showCarState() {
+        int granted = 0;
+        for (String p : CAR_PERMISSIONS) if (checkSelfPermission(p) == PackageManager.PERMISSION_GRANTED) granted++;
+        long heard = CarData.lastHeard(this);
+        String when = heard == 0 ? "لم تتصل السيارة بعد بهذا الإصدار"
+                : "آخر ما وصل: " + android.text.format.DateUtils.getRelativeTimeSpanString(heard, System.currentTimeMillis(), 60_000L);
+        carState.setText("الإذن: " + (granted == CAR_PERMISSIONS.length ? "مسموح" : granted == 0 ? "غير مسموح بعد" : "مسموح جزئيًا")
+                + "\n" + when
+                + "\nالسيارة: " + CarData.report(this, "model")
+                + "\nالوقود: " + CarData.report(this, "fuel")
+                + "\nالمدى المتبقي: " + CarData.report(this, "range")
+                + "\nالوقود منخفض؟ " + CarData.report(this, "low")
+                + "\nالسرعة: " + CarData.report(this, "speed")
+                + "\nالعداد: " + CarData.report(this, "odometer"));
     }
 
     // ---------------------------------------------------------------- «فريقك»: a league, then a team in it

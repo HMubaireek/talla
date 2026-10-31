@@ -7,6 +7,10 @@
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <!-- a navigation-category app gets the whole screen to draw on (see README: why navigation) -->
     <uses-permission android:name="androidx.car.app.NAVIGATION_TEMPLATES" />
+    <!-- «بيانات السيارة»: what the car itself sends through Android Auto (CarData); asked for in the settings -->
+    <uses-permission android:name="com.google.android.gms.permission.CAR_FUEL" />
+    <uses-permission android:name="com.google.android.gms.permission.CAR_SPEED" />
+    <uses-permission android:name="com.google.android.gms.permission.CAR_MILEAGE" />
     <uses-permission android:name="androidx.car.app.ACCESS_SURFACE" />
 
     <!-- «التحديث من الهاتف» opens Shizuku and UnknownAuto, found among the launcher's apps -->

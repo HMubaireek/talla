@@ -37,6 +37,12 @@ final class PreviewView extends View implements Hub.Target {
         hub.invalidate();
     }
 
+    /** the low-fuel warning with made-up numbers, to see where it goes */
+    void setLowFuel(boolean on) {
+        renderer.demoFuel = on;
+        hub.invalidate();
+    }
+
     /** as the car shows it in its night mode (the dimming follows «تخفيف الإضاءة») */
     void setNight(boolean on) {
         night = on;

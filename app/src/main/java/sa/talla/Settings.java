@@ -21,6 +21,7 @@ final class Settings {
         {"phrase", "العبارة"},
         {"weather", "الطقس"},
         {"warnings", "تنبيهات الطقس (غبار، رياح، مطر، ضباب، حر)"},
+        {"fuel", "تنبيه الوقود المنخفض (من السيارة)"},
         {"prayer", "الصلاة القادمة"},
         {"match", "مباراة فريقك القادمة"},
         {"carousel", "العرض المتحرك"},
@@ -160,6 +161,18 @@ final class Settings {
     void setTeam(String id, String name, String league) {
         sp.edit().putString("team_id", id).putString("team_name", name).putString("team_league", league).apply();
     }
+
+    /** «بيانات السيارة» (CarData): warn when the range is under this many km; the nearest station with it; the fuel always */
+    static final String[][] FUEL_LIMITS = {{"50", "٥٠ كم"}, {"80", "٨٠ كم"}, {"120", "١٢٠ كم"}, {"200", "٢٠٠ كم"}};
+    int fuelLimitKm() { return sp.getInt("fuel_limit", 80); }
+    void setFuelLimitKm(int v) { sp.edit().putInt("fuel_limit", v).apply(); }
+    boolean fuelStation() { return sp.getBoolean("fuel_station", true); }
+    void setFuelStation(boolean v) { sp.edit().putBoolean("fuel_station", v).apply(); }
+    boolean fuelAlways() { return sp.getBoolean("fuel_always", false); }
+    void setFuelAlways(boolean v) { sp.edit().putBoolean("fuel_always", v).apply(); }
+    /** while the car moves: no slow photo motion, and the photos wait until it stops */
+    boolean calmMoving() { return sp.getBoolean("calm_moving", true); }
+    void setCalmMoving(boolean v) { sp.edit().putBoolean("calm_moving", v).apply(); }
 
     /** «بطاقة الوسائط» (MediaService), off unless switched on */
     boolean mediaCard() { return sp.getBoolean("media_card", false); }
