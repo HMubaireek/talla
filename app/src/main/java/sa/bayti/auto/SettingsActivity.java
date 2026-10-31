@@ -78,6 +78,7 @@ public final class SettingsActivity extends Activity {
         preview.setBackground(round);
         list.addView(preview, new LinearLayout.LayoutParams(-1, -2));
         toggle("معاينة الشاشة المقسومة (الخريطة مع بطاقات أندرويد أوتو)", false, preview::setSplit);
+        toggle("معاينة الليل (كما تخففها السيارة حين تضيء أنوارها)", false, preview::setNight);
 
         section("ما يظهر في السيارة");
         for (String[] item : Settings.ITEMS) toggle(item[1], s.shows(item[0]), on -> s.setShows(item[0], on));
@@ -127,6 +128,8 @@ public final class SettingsActivity extends Activity {
         sources(s.carouselSources(), s::setCarouselSources);
         choice("تتبدل كل", seconds(Settings.CAROUSEL_SECONDS), String.valueOf(s.carouselSeconds()), v -> s.setCarouselSeconds(Integer.parseInt(v)));
         toggle("حركة الصور الهادئة (كما في بيتي)", s.motion(), s::setMotion);
+        choice("تخفيف الإضاءة ليلًا (حين تنتقل السيارة إلى وضعها الليلي)", Settings.NIGHT_DIM, String.valueOf(s.nightDim()),
+                v -> s.setNightDim(Integer.parseInt(v)));
 
         section("صوري");
         folderLabel = note(folderText());

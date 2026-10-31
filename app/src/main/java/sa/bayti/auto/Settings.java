@@ -20,6 +20,7 @@ final class Settings {
         {"greg", "التاريخ الميلادي"},
         {"phrase", "العبارة"},
         {"weather", "الطقس"},
+        {"warnings", "تنبيهات الطقس (غبار، رياح، مطر، ضباب، حر)"},
         {"prayer", "الصلاة القادمة"},
         {"hilal", "مباراة الهلال القادمة"},
         {"carousel", "العرض المتحرك"},
@@ -125,6 +126,11 @@ final class Settings {
     /** the photos' slow settle and push-in; off: they only cross-fade */
     boolean motion() { return sp.getBoolean("motion", true); }
     void setMotion(boolean v) { sp.edit().putBoolean("motion", v).apply(); }
+
+    /** «تخفيف الإضاءة ليلًا»: how much darker (percent) the screen is while the car is in its night mode */
+    static final String[][] NIGHT_DIM = {{"0", "بلا تخفيف"}, {"25", "خفيف"}, {"40", "متوسط"}, {"55", "قوي"}};
+    int nightDim() { return sp.getInt("night_dim", 40); }
+    void setNightDim(int v) { sp.edit().putInt("night_dim", Math.max(0, Math.min(70, v))).apply(); }
 
     List<String> bgSources() { return list(sp.getString("bg_sources", "saudi,mountains,sunsets")); }
     void setBgSources(List<String> v) { sp.edit().putString("bg_sources", join(v)).apply(); }

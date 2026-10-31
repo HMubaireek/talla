@@ -111,6 +111,9 @@ final class Hub implements SharedPreferences.OnSharedPreferenceChangeListener {
     /** the carousel's next photo now (a swipe, the knob, a tap on the preview) */
     void nextCarousel() { handler.post(() -> { carousel.nextAt = 0; invalidate(); }); }
 
+    /** the car's one button: the next background now */
+    void nextBackground() { handler.post(() -> { background.nextAt = 0; invalidate(); }); }
+
     // ---------------------------------------------------------------- what is due
 
     private void housekeeping(long now) {

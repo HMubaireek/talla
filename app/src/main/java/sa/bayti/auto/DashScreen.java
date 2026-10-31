@@ -22,8 +22,9 @@ import androidx.lifecycle.LifecycleOwner;
 
 /**
  * The car's screen: a navigation template, which leaves the whole screen to the app's own drawing (the "map"). The template must have
- * an action strip with one action at least; ours is a single invisible one (the next carousel photo, for the knob), which Android
- * Auto hides after a few seconds anyway. The drawing itself is Renderer's, on the surface the car gives, from the hub's thread.
+ * an action strip with one action at least; ours is a single pale icon (the next background), which Android Auto hides after a few
+ * seconds and brings back on a touch or the knob. It floats over the drawing and takes no room from it. The drawing itself is
+ * Renderer's, on the surface the car gives, from the hub's thread, dimmed while the car is in its night mode.
  */
 final class DashScreen extends Screen implements SurfaceCallback, Hub.Target {
     private final Hub hub;
@@ -54,9 +55,9 @@ final class DashScreen extends Screen implements SurfaceCallback, Hub.Target {
     @NonNull
     @Override
     public Template onGetTemplate() {
-        CarIcon none = new CarIcon.Builder(IconCompat.createWithResource(getCarContext(), R.drawable.ic_none)).build();
+        CarIcon next = new CarIcon.Builder(IconCompat.createWithResource(getCarContext(), R.drawable.ic_next_photo)).build();
         ActionStrip strip = new ActionStrip.Builder()
-                .addAction(new Action.Builder().setIcon(none).setOnClickListener(hub::nextCarousel).build())
+                .addAction(new Action.Builder().setIcon(next).setOnClickListener(hub::nextBackground).build())
                 .build();
         return new NavigationTemplate.Builder().setActionStrip(strip).build();
     }
@@ -103,7 +104,8 @@ final class DashScreen extends Screen implements SurfaceCallback, Hub.Target {
         Canvas cv = null;
         try {
             cv = s.lockHardwareCanvas();
-            return renderer.draw(cv, width, height, visible, hub, now);
+            float dim = getCarContext().isDarkMode() ? hub.settings.nightDim() / 100f : 0;
+            return renderer.draw(cv, width, height, visible, dim, hub, now);
         } catch (RuntimeException e) {
             return false;   // the surface went while drawing: the next one comes with onSurfaceAvailable
         } finally {

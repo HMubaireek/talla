@@ -1,6 +1,7 @@
 package sa.bayti.auto;
 
 import android.content.Intent;
+import android.content.res.Configuration;
 
 import androidx.annotation.NonNull;
 import androidx.car.app.CarAppService;
@@ -25,6 +26,12 @@ public final class CarService extends CarAppService {
             @Override
             public Screen onCreateScreen(@NonNull Intent intent) {
                 return new DashScreen(getCarContext());
+            }
+
+            /** the car's day and night (its headlights): the screen dims at once */
+            @Override
+            public void onCarConfigurationChanged(@NonNull Configuration c) {
+                Hub.get(getCarContext()).invalidate();
             }
         };
     }

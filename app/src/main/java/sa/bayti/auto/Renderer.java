@@ -25,7 +25,7 @@ import java.util.Random;
  * Only the hub's thread calls it.
  */
 final class Renderer {
-    static final int SAND = 0xFFF6EFE0, DIM = 0xFFC3B8A2, GOLD = 0xFFDCB86F, GOLD_HI = 0xFFFFE9B8;
+    static final int SAND = 0xFFF6EFE0, DIM = 0xFFC3B8A2, GOLD = 0xFFDCB86F, GOLD_HI = 0xFFFFE9B8, AMBER = 0xFFFFB45A;
     private static final long BG_FADE = 2000, CAR_FADE = 650, SETTLE = 60_000, PUSH = 9000;
 
     private final Typeface light, regular, medium, bold;
@@ -61,10 +61,11 @@ final class Renderer {
 
     /**
      * One frame on a canvas w x h; area is the part of it the car shows uncovered (Android Auto's split view leaves the app only a
-     * panel of it), null for all of it. Only its sides are used: its top and bottom move with the car's buttons.
+     * panel of it), null for all of it. Only its sides are used: its top and bottom move with the car's buttons. dim (0 to 1) is the
+     * night's dimming: the photo gets all of it, the words about a third, so they stay easy to read.
      * True while something moves (a fade, a settle, a push-in), so the hub draws the next frame soon.
      */
-    boolean draw(Canvas cv, int w, int h, Rect area, Hub hub, long now) {
+    boolean draw(Canvas cv, int w, int h, Rect area, float dim, Hub hub, long now) {
         Settings s = hub.settings;
         boolean latin = s.latinDigits(), motion = s.motion();
         float k = h / 480f, W = w / k, H = 480;
@@ -76,6 +77,7 @@ final class Renderer {
         cv.save();
         cv.scale(k, k);
         boolean moving = background(cv, W, H, aL, aR, hub, now, motion);
+        if (dim > 0) cv.drawColor(Color.argb(Math.round(255 * dim), 0, 0, 0));
 
         float L = aL + 24, T = 18, R = aR - 24, B = H - 18, CW = R - L;
         // a narrow panel (the split view) gets smaller type
@@ -172,9 +174,36 @@ final class Renderer {
             text.clearShadowLayer();
             ly += 82 * z;
         }
+        String warn = s.shows("warnings") && wx != null && wx.fresh(now) ? wx.warning(latin) : "";
+        if (!warn.isEmpty()) {
+            ly += 4;
+            warningSign(cv, L, ly + 13 * z, 15 * z);
+            shadow(10);
+            line(cv, warn, L + 22 * z, ly + 18 * z, medium, 17 * z, AMBER, CW - rightW - 16 - 22 * z, Paint.Align.LEFT);
+            text.clearShadowLayer();
+            ly += 26 * z;
+        }
         if (s.shows("carousel")) moving |= carousel(cv, L, ly + 8, Math.min(CW * .44f - 8, leftW), bottomOfLeft, hub.carousel, now, motion);
+        if (dim > 0) cv.drawColor(Color.argb(Math.round(255 * dim * .35f), 0, 0, 0));
         cv.restore();
         return moving;
+    }
+
+    /** an amber triangle with «!», size wide, its middle at (x + size / 2, cy) */
+    private void warningSign(Canvas cv, float x, float cy, float size) {
+        clip.reset();
+        clip.moveTo(x + size / 2, cy - size * .48f);
+        clip.lineTo(x + size, cy + size * .42f);
+        clip.lineTo(x, cy + size * .42f);
+        clip.close();
+        fill.setColor(AMBER);
+        fill.setShadowLayer(6, 0, 1, 0x99000000);
+        cv.drawPath(clip, fill);
+        fill.clearShadowLayer();
+        fill.setColor(0xFF1A1205);
+        cv.drawRect(x + size * .45f, cy - size * .16f, x + size * .55f, cy + size * .16f, fill);
+        cv.drawRect(x + size * .45f, cy + size * .23f, x + size * .55f, cy + size * .33f, fill);
+        fill.setColor(Color.BLACK);
     }
 
     private void shadow(float radius) { text.setShadowLayer(radius, 0, 2, 0x99000000); }

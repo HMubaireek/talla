@@ -21,7 +21,7 @@ final class PreviewView extends View implements Hub.Target {
     /** Android Auto's split view, as the Mazda showed it: the app's panel is about two thirds of the screen */
     private final Rect splitArea = new Rect(0, 0, W * 66 / 100, H);
     private final Paint side = new Paint(Paint.ANTI_ALIAS_FLAG);
-    private volatile boolean split;
+    private volatile boolean split, night;
     /** drawn on the hub's thread into back, then swapped with front, which onDraw shows */
     private Bitmap front, back;
 
@@ -34,6 +34,12 @@ final class PreviewView extends View implements Hub.Target {
 
     void setSplit(boolean on) {
         split = on;
+        hub.invalidate();
+    }
+
+    /** as the car shows it in its night mode, with the settings' dimming */
+    void setNight(boolean on) {
+        night = on;
         hub.invalidate();
     }
 
@@ -60,7 +66,8 @@ final class PreviewView extends View implements Hub.Target {
     public boolean frame(long now) {
         if (back == null) back = Bitmap.createBitmap(W, H, Bitmap.Config.ARGB_8888);
         Canvas cv = new Canvas(back);
-        boolean moving = renderer.draw(cv, W, H, split ? splitArea : null, hub, now);
+        float dim = night ? hub.settings.nightDim() / 100f : 0;
+        boolean moving = renderer.draw(cv, W, H, split ? splitArea : null, dim, hub, now);
         if (split) {
             side.setColor(0xFF101418);
             cv.drawRect(splitArea.right, 0, W, H, side);

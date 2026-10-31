@@ -8,6 +8,7 @@ import android.location.Geocoder;
 import android.location.Location;
 import android.location.LocationManager;
 
+import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.net.URLEncoder;
@@ -16,20 +17,42 @@ import java.util.Locale;
 
 /**
  * The weather where the car is (the phone's last known place) or in the settings' city: Open-Meteo's temperature, sky and the day's
- * high and low, and its air-quality dust as Bayti TV reads it («غبار»). Asked at most every 30 minutes; the last answer is kept on the
- * phone, and one older than 3 hours is not shown.
+ * high and low, and its air-quality dust as Bayti TV reads it («غبار»). For the warnings it also reads the next three hours' sky,
+ * strongest gusts and lowest visibility. Asked at most every 30 minutes; the last answer is kept on the phone, and one older than
+ * 3 hours is not shown.
  */
 final class Weather {
     static final long REFRESH_MS = 30 * 60 * 1000L;
     private static final long STALE_MS = 3 * 60 * 60 * 1000L;
 
     final double temp, high, low, dust;
-    final int code;
+    /** the next three hours: the strongest gust (km/h), the lowest visibility (m), the worst sky (WMO code); NaN / -1 unknown */
+    final double gust, visibility;
+    final int code, worst;
     final String place;
     final long at;
 
-    private Weather(double temp, double high, double low, double dust, int code, String place, long at) {
-        this.temp = temp; this.high = high; this.low = low; this.dust = dust; this.code = code; this.place = place; this.at = at;
+    private Weather(double temp, double high, double low, double dust, double gust, double visibility, int code, int worst,
+                    String place, long at) {
+        this.temp = temp; this.high = high; this.low = low; this.dust = dust; this.gust = gust; this.visibility = visibility;
+        this.code = code; this.worst = worst; this.place = place; this.at = at;
+    }
+
+    /**
+     * the one warning worth a driver's glance, the most serious first, «» for none: storms, thick dust, poor visibility, heavy rain,
+     * strong wind, fog, dust, great heat
+     */
+    String warning(boolean latin) {
+        int c = Math.max(code, worst);
+        if (c >= 95) return "عواصف رعدية متوقعة";
+        if (dust >= 400) return "غبار كثيف · الرؤية ضعيفة";
+        if (!Double.isNaN(visibility) && visibility < 1000) return "رؤية منخفضة: أقل من كيلومتر";
+        if (c == 65 || c == 67 || c == 82 || c == 75 || c == 86) return "أمطار غزيرة متوقعة";
+        if (!Double.isNaN(gust) && gust >= 50) return "رياح شديدة، هبات " + Texts.digits(Long.toString(Math.round(gust)), latin) + " كم/س";
+        if (c == 45 || c == 48) return "ضباب";
+        if (dust >= 150) return "غبار · انتبه للرؤية";
+        if (!Double.isNaN(high) && high >= 47) return "حر شديد";
+        return "";
     }
 
     boolean fresh(long now) { return now - at < STALE_MS; }
@@ -39,7 +62,8 @@ final class Weather {
         SharedPreferences sp = prefs(c);
         if (!sp.contains("code")) return null;
         return new Weather(sp.getFloat("temp", 0), sp.getFloat("high", 0), sp.getFloat("low", 0), sp.getFloat("dust", 0),
-                sp.getInt("code", -1), sp.getString("place", ""), sp.getLong("at", 0));
+                sp.getFloat("gust", Float.NaN), sp.getFloat("vis", Float.NaN), sp.getInt("code", -1), sp.getInt("worst", -1),
+                sp.getString("place", ""), sp.getLong("at", 0));
     }
 
     static boolean due(Context c) { return System.currentTimeMillis() - prefs(c).getLong("tried", 0) >= REFRESH_MS; }
@@ -60,9 +84,25 @@ final class Weather {
             String q = "?latitude=" + String.format(Locale.US, "%.4f", lat) + "&longitude=" + String.format(Locale.US, "%.4f", lon)
                     + "&timezone=" + URLEncoder.encode(s.tz(), "UTF-8");
             JSONObject root = new JSONObject(Net.text("https://api.open-meteo.com/v1/forecast" + q
-                    + "&current=temperature_2m,weather_code&daily=temperature_2m_max,temperature_2m_min&forecast_days=1"));
+                    + "&current=temperature_2m,weather_code,wind_gusts_10m,visibility"
+                    + "&hourly=weather_code,wind_gusts_10m,visibility&forecast_hours=3"
+                    + "&daily=temperature_2m_max,temperature_2m_min&forecast_days=1"));
             JSONObject cur = root.getJSONObject("current");
             JSONObject daily = root.optJSONObject("daily");
+            double gust = cur.optDouble("wind_gusts_10m"), vis = cur.optDouble("visibility");
+            int worst = -1;
+            JSONObject hourly = root.optJSONObject("hourly");
+            if (hourly != null) {
+                JSONArray codes = hourly.optJSONArray("weather_code"), gusts = hourly.optJSONArray("wind_gusts_10m"),
+                        viss = hourly.optJSONArray("visibility");
+                for (int i = 0; i < 3; i++) {
+                    if (codes != null && i < codes.length()) worst = Math.max(worst, codes.optInt(i, -1));
+                    double g = gusts == null ? Double.NaN : gusts.optDouble(i);
+                    if (!Double.isNaN(g) && (Double.isNaN(gust) || g > gust)) gust = g;
+                    double v = viss == null ? Double.NaN : viss.optDouble(i);
+                    if (!Double.isNaN(v) && (Double.isNaN(vis) || v < vis)) vis = v;
+                }
+            }
             double high = daily == null ? Double.NaN : daily.getJSONArray("temperature_2m_max").optDouble(0);
             double low = daily == null ? Double.NaN : daily.getJSONArray("temperature_2m_min").optDouble(0);
             double dust = 0;
@@ -73,9 +113,11 @@ final class Weather {
             } catch (Exception ignored) {
                 // no air reading: the sky's word stands
             }
-            Weather w = new Weather(cur.getDouble("temperature_2m"), high, low, dust, cur.getInt("weather_code"), place, System.currentTimeMillis());
+            Weather w = new Weather(cur.getDouble("temperature_2m"), high, low, dust, gust, vis, cur.getInt("weather_code"), worst, place,
+                    System.currentTimeMillis());
             prefs(c).edit().putFloat("temp", (float) w.temp).putFloat("high", (float) w.high).putFloat("low", (float) w.low)
-                    .putFloat("dust", (float) w.dust).putInt("code", w.code).putString("place", w.place).putLong("at", w.at).apply();
+                    .putFloat("dust", (float) w.dust).putFloat("gust", (float) w.gust).putFloat("vis", (float) w.visibility)
+                    .putInt("code", w.code).putInt("worst", w.worst).putString("place", w.place).putLong("at", w.at).apply();
             return w;
         } catch (Exception e) {
             return null;

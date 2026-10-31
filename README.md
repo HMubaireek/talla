@@ -33,8 +33,9 @@ Android Auto only lists an app like this one when Google Play is recorded as its
    - Android Auto settings → *Version* → tap it 10 times
    - in the ⋮ menu: Developer settings → *Unknown sources* on
 9. **In the car.** Plug the phone in. Open the app grid on the Mazda screen and choose **بيتي في السيارة**.
-   - There are no buttons on the screen. (The navigation template needs one action, so there is a single invisible one; the knob can
-     still reach it to move the carousel on.)
+   - One pale button (a small landscape) moves to the next background. Android Auto hides it after a few seconds; a touch or the knob
+     brings it back. (The navigation template must have at least one button.)
+   - At night (when the car switches to its night look) the screen dims; «تخفيف الإضاءة ليلًا» sets how much.
 
 **Updates:** install each new APK the same way, through UnknownAuto. Installing it any other way loses the Play attribution, and the app disappears from the car until you reinstall.
 
